@@ -32,6 +32,7 @@ struct SubscriptionsView: View {
     @Environment(\.modelContext) private var context
     @Query private var shows: [TrackedShow]
     @Query private var movies: [TrackedMovie]
+    @Query private var ignored: [IgnoredTitle]
 
     @AppStorage(Subscriptions.key) private var raw = ""
     @AppStorage(AppSettings.regionKey) private var region = "US"
@@ -117,7 +118,7 @@ struct SubscriptionsView: View {
                 .padding(.top, 18)
                 .plainRow()
 
-                if let results = picks[service.id], !results.isEmpty {
+                if case let results = showPicks(service.id), !results.isEmpty {
                     stripLabel("Shows")
                     strip {
                         ForEach(results) { show in
@@ -135,7 +136,7 @@ struct SubscriptionsView: View {
                     }
                 }
 
-                if let results = moviePicks[service.id], !results.isEmpty {
+                if case let results = filmPicks(service.id), !results.isEmpty {
                     stripLabel("Films")
                     strip {
                         ForEach(results) { movie in
@@ -154,8 +155,8 @@ struct SubscriptionsView: View {
                 }
 
                 if !isLoading,
-                   (picks[service.id]?.isEmpty ?? true),
-                   (moviePicks[service.id]?.isEmpty ?? true) {
+                   showPicks(service.id).isEmpty,
+                   filmPicks(service.id).isEmpty {
                     Text("Nothing new to suggest here.")
                         .font(.footnote)
                         .foregroundStyle(Theme.tertiary)
@@ -168,6 +169,16 @@ struct SubscriptionsView: View {
         }
         .themedList()
         .refreshable { await loadPicks(force: true) }
+    }
+
+    private func showPicks(_ serviceID: Int) -> [TVSearchResult] {
+        let hidden = ignored.ids(for: .tv)
+        return (picks[serviceID] ?? []).filter { !hidden.contains($0.id) }
+    }
+
+    private func filmPicks(_ serviceID: Int) -> [MovieSearchResult] {
+        let hidden = ignored.ids(for: .movies)
+        return (moviePicks[serviceID] ?? []).filter { !hidden.contains($0.id) }
     }
 
     private func stripLabel(_ text: String) -> some View {

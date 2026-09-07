@@ -334,7 +334,7 @@ struct OnboardingView: View {
     private func loadSuggestions() async {
         isLoadingShows = true
         defer { isLoadingShows = false }
-        suggestions = (try? await TMDBClient.shared.shows(in: .popular)) ?? []
+        suggestions = (try? await TMDBClient.shared.shows(in: .popular))?.results ?? []
     }
 
     private func search() async {

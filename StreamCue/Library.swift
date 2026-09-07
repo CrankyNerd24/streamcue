@@ -60,6 +60,39 @@ enum Library {
         return (try? context.fetch(descriptor))?.first
     }
 
+    // MARK: - Ignoring
+
+    static func ignore(
+        tmdbID: Int,
+        kind: MediaKind,
+        title: String,
+        posterPath: String?,
+        context: ModelContext
+    ) {
+        let kindRaw = kind.rawValue
+        var descriptor = FetchDescriptor<IgnoredTitle>(
+            predicate: #Predicate { $0.tmdbID == tmdbID && $0.kindRaw == kindRaw }
+        )
+        descriptor.fetchLimit = 1
+        guard ((try? context.fetch(descriptor)) ?? []).isEmpty else { return }
+
+        context.insert(IgnoredTitle(
+            tmdbID: tmdbID,
+            kind: kind,
+            title: title,
+            posterPath: posterPath
+        ))
+    }
+
+    static func isIgnored(tmdbID: Int, kind: MediaKind, context: ModelContext) -> Bool {
+        let kindRaw = kind.rawValue
+        var descriptor = FetchDescriptor<IgnoredTitle>(
+            predicate: #Predicate { $0.tmdbID == tmdbID && $0.kindRaw == kindRaw }
+        )
+        descriptor.fetchLimit = 1
+        return !(((try? context.fetch(descriptor)) ?? []).isEmpty)
+    }
+
     // MARK: - Merging
 
     /// Collapses duplicate records, keeping the oldest of each and folding in
@@ -69,6 +102,7 @@ enum Library {
         mergeShows(context: context)
         mergeMovies(context: context)
         mergeEpisodes(context: context)
+        mergeIgnored(context: context)
     }
 
     private static func mergeShows(context: ModelContext) {
@@ -94,6 +128,16 @@ enum Library {
                 // Watched wins: if either person marked it seen, it's seen.
                 if duplicate.watched { keeper.watched = true }
                 if keeper.lastRefreshed == nil { keeper.lastRefreshed = duplicate.lastRefreshed }
+                context.delete(duplicate)
+            }
+        }
+    }
+
+    private static func mergeIgnored(context: ModelContext) {
+        let all = (try? context.fetch(FetchDescriptor<IgnoredTitle>())) ?? []
+        let grouped = Dictionary(grouping: all) { "\($0.kindRaw)-\($0.tmdbID)" }
+        for (_, group) in grouped where group.count > 1 {
+            for duplicate in group.sorted(by: { $0.addedAt < $1.addedAt }).dropFirst() {
                 context.delete(duplicate)
             }
         }

@@ -39,6 +39,7 @@ struct TitlePreviewSheet: View {
     let onAdd: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @State private var availability: Availability?
     @State private var isLoading = true
 
@@ -102,6 +103,25 @@ struct TitlePreviewSheet: View {
                     .foregroundStyle(preview.isTracked ? Theme.secondary : .white)
                     .disabled(preview.isTracked)
                     .padding(.top, 4)
+
+                    if !preview.isTracked {
+                        Button {
+                            Library.ignore(
+                                tmdbID: preview.id,
+                                kind: preview.kind,
+                                title: preview.title,
+                                posterPath: preview.posterPath,
+                                context: context
+                            )
+                            dismiss()
+                        } label: {
+                            Label("Not interested", systemImage: "hand.thumbsdown")
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .foregroundStyle(Theme.tertiary)
+                    }
                 }
                 .padding(20)
             }

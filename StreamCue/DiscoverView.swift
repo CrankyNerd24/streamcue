@@ -49,17 +49,34 @@ struct DiscoverView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TrackedShow.addedAt, order: .reverse) private var tracked: [TrackedShow]
     @Query(sort: \TrackedMovie.addedAt, order: .reverse) private var trackedMovies: [TrackedMovie]
+    @Query private var ignored: [IgnoredTitle]
 
     @State private var kind: MediaKind = .tv
     @State private var feed: DiscoverFeed = .forYou
     @State private var showResults: [TVSearchResult] = []
     @State private var movieResults: [MovieSearchResult] = []
     @State private var isLoading = false
+    @State private var isLoadingMore = false
+    @State private var page = 1
+    @State private var totalPages = 1
     @State private var errorMessage: String?
     @State private var providers = ProviderCache()
     @State private var preview: TitlePreview?
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
+
+    /// Anything already tracked is dropped — a browse screen shouldn't show
+    /// you things you've got. Computed rather than filtered at load time so
+    /// adding a title removes it from the grid immediately.
+    private var visibleShows: [TVSearchResult] {
+        let hidden = ignored.ids(for: .tv)
+        return showResults.filter { !isTracked($0.id) && !hidden.contains($0.id) }
+    }
+
+    private var visibleMovies: [MovieSearchResult] {
+        let hidden = ignored.ids(for: .movies)
+        return movieResults.filter { !isTrackedMovie($0.id) && !hidden.contains($0.id) }
+    }
 
     private var isEmptyForYou: Bool {
         feed == .forYou && (kind == .tv ? tracked.isEmpty : trackedMovies.isEmpty)
@@ -96,7 +113,8 @@ struct DiscoverView: View {
 
                 LazyVGrid(columns: columns, spacing: 16) {
                     if kind == .tv {
-                        ForEach(showResults) { show in
+                        ForEach(visibleShows) { show in
+                            paginated(show.id, last: visibleShows.last?.id)
                             tile(
                                 id: show.id,
                                 title: show.name,
@@ -108,7 +126,8 @@ struct DiscoverView: View {
                             }
                         }
                     } else {
-                        ForEach(movieResults) { movie in
+                        ForEach(visibleMovies) { movie in
+                            paginated(movie.id, last: visibleMovies.last?.id)
                             tile(
                                 id: movie.id,
                                 title: movie.title,
@@ -122,10 +141,22 @@ struct DiscoverView: View {
                     }
                 }
                 .padding()
+
+                if isLoadingMore {
+                    ProgressView()
+                        .tint(Theme.secondary)
+                        .padding(.bottom, 20)
+                }
             }
             .overlay {
                 if isLoading && currentIsEmpty {
                     ProgressView()
+                } else if !isLoading && currentIsEmpty && !isEmptyForYou {
+                    ContentUnavailableView(
+                        "You're all caught up",
+                        systemImage: "checkmark.circle",
+                        description: Text("Everything here is already on your list. Try another feed.")
+                    )
                 } else if isEmptyForYou {
                     ContentUnavailableView(
                         "Nothing to go on yet",
@@ -148,7 +179,18 @@ struct DiscoverView: View {
     }
 
     private var currentIsEmpty: Bool {
-        kind == .tv ? showResults.isEmpty : movieResults.isEmpty
+        kind == .tv ? visibleShows.isEmpty : visibleMovies.isEmpty
+    }
+
+    /// An invisible marker that asks for the next page when the last tile in
+    /// the grid comes into view.
+    @ViewBuilder
+    private func paginated(_ id: Int, last: Int?) -> some View {
+        if id == last {
+            Color.clear
+                .frame(height: 0)
+                .onAppear { Task { await loadMore() } }
+        }
     }
 
     private func tile(
@@ -183,6 +225,8 @@ struct DiscoverView: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        page = 1
+        totalPages = 1
         do {
             switch (kind, feed) {
             case (.tv, .forYou):
@@ -190,15 +234,51 @@ struct DiscoverView: View {
             case (.movies, .forYou):
                 movieResults = await recommendedMovies()
             case (.tv, _):
-                showResults = try await TMDBClient.shared.shows(in: feed)
+                let response = try await TMDBClient.shared.shows(in: feed, page: 1)
+                showResults = response.results
+                totalPages = response.totalPages
             case (.movies, _):
-                movieResults = try await TMDBClient.shared.movies(in: feed)
+                let response = try await TMDBClient.shared.movies(in: feed, page: 1)
+                movieResults = response.results
+                totalPages = response.totalPages
             }
         } catch {
             errorMessage = error.localizedDescription
             if kind == .tv { showResults = [] } else { movieResults = [] }
         }
         isLoading = false
+    }
+
+    /// "For you" is assembled from your own list rather than fetched, so it
+    /// has no pages to walk.
+    private func loadMore() async {
+        guard feed != .forYou,
+              !isLoadingMore,
+              !isLoading,
+              page < totalPages,
+              page < 20 else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let next = page + 1
+        do {
+            switch kind {
+            case .tv:
+                let response = try await TMDBClient.shared.shows(in: feed, page: next)
+                let known = Set(showResults.map(\.id))
+                showResults += response.results.filter { !known.contains($0.id) }
+                totalPages = response.totalPages
+            case .movies:
+                let response = try await TMDBClient.shared.movies(in: feed, page: next)
+                let known = Set(movieResults.map(\.id))
+                movieResults += response.results.filter { !known.contains($0.id) }
+                totalPages = response.totalPages
+            }
+            page = next
+        } catch {
+            // Silent: the current page is still on screen and usable.
+        }
     }
 
     /// Ranks by how many of your own titles recommended the same thing —

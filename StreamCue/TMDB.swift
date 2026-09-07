@@ -3,7 +3,14 @@ import Foundation
 // MARK: - Search
 
 struct TVSearchResponse: Decodable {
+    let page: Int?
     let results: [TVSearchResult]
+    let totalPages: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case page, results
+        case totalPages = "total_pages"
+    }
 }
 
 struct TVSearchResult: Decodable, Identifiable, Sendable {
@@ -103,7 +110,14 @@ struct TVEpisode: Decodable {
 // MARK: - Movies
 
 struct MovieSearchResponse: Decodable {
+    let page: Int?
     let results: [MovieSearchResult]
+    let totalPages: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case page, results
+        case totalPages = "total_pages"
+    }
 }
 
 struct MovieSearchResult: Decodable, Identifiable, Sendable {
@@ -341,16 +355,28 @@ enum DiscoverFeed: String, CaseIterable, Identifiable {
 }
 
 extension TMDBClient {
-    func shows(in feed: DiscoverFeed) async throws -> [TVSearchResult] {
-        guard let path = feed.path(for: .tv) else { return [] }
-        let response: TVSearchResponse = try await get(path)
-        return response.results
+    func shows(
+        in feed: DiscoverFeed,
+        page: Int = 1
+    ) async throws -> (results: [TVSearchResult], totalPages: Int) {
+        guard let path = feed.path(for: .tv) else { return ([], 1) }
+        let response: TVSearchResponse = try await get(
+            path,
+            query: [URLQueryItem(name: "page", value: String(page))]
+        )
+        return (response.results, response.totalPages ?? 1)
     }
 
-    func movies(in feed: DiscoverFeed) async throws -> [MovieSearchResult] {
-        guard let path = feed.path(for: .movies) else { return [] }
-        let response: MovieSearchResponse = try await get(path)
-        return response.results
+    func movies(
+        in feed: DiscoverFeed,
+        page: Int = 1
+    ) async throws -> (results: [MovieSearchResult], totalPages: Int) {
+        guard let path = feed.path(for: .movies) else { return ([], 1) }
+        let response: MovieSearchResponse = try await get(
+            path,
+            query: [URLQueryItem(name: "page", value: String(page))]
+        )
+        return (response.results, response.totalPages ?? 1)
     }
 
     func recommendations(forShowID id: Int) async throws -> [TVSearchResult] {

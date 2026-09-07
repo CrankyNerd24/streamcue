@@ -4,17 +4,30 @@ import SwiftData
 struct WatchlistView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TrackedMovie.addedAt, order: .reverse) private var movies: [TrackedMovie]
+    @Query private var ignored: [IgnoredTitle]
 
     @State private var isAdding = false
     @State private var isRefreshing = false
     @AppStorage("watchedExpanded") private var isWatchedExpanded = false
     @State private var isConfirmingClear = false
+    @State private var query = ""
     @State private var suggestions: [MovieSearchResult] = []
     @State private var isLoadingSuggestions = false
     @State private var preview: TitlePreview?
 
-    private var unwatched: [TrackedMovie] { movies.filter { !$0.watched } }
-    private var watched: [TrackedMovie] { movies.filter(\.watched) }
+    /// Searching filters your own list — use + to add something new.
+    private var matching: [TrackedMovie] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return movies }
+        return movies.filter { $0.title.localizedCaseInsensitiveContains(trimmed) }
+    }
+
+    private var isSearching: Bool {
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var unwatched: [TrackedMovie] { matching.filter { !$0.watched } }
+    private var watched: [TrackedMovie] { matching.filter(\.watched) }
 
     private func group(_ availability: MovieAvailability) -> [TrackedMovie] {
         unwatched.filter { $0.availability == availability }
@@ -25,6 +38,8 @@ struct WatchlistView: View {
             Group {
                 if movies.isEmpty {
                     emptyState
+                } else if matching.isEmpty {
+                    noMatches
                 } else {
                     list
                 }
@@ -60,6 +75,7 @@ struct WatchlistView: View {
                     }
                 }
             }
+            .searchable(text: $query, prompt: "Search your films")
             .sheet(isPresented: $isAdding) { AddMovieView() }
             .sheet(item: $preview) { preview in
                 TitlePreviewSheet(preview: preview) { addFromPreview(preview) }
@@ -135,7 +151,7 @@ struct WatchlistView: View {
             .padding(.bottom, 2)
             .plainRow()
 
-            if isWatchedExpanded {
+            if isWatchedExpanded || isSearching {
                 ForEach(Array(watched.enumerated()), id: \.element.id) { index, movie in
                     NavigationLink(destination: MovieDetailView(movie: movie)) {
                         MovieRow(movie: movie, showsDivider: index < watched.count - 1)
@@ -190,6 +206,23 @@ struct WatchlistView: View {
         }
     }
 
+    private var noMatches: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 36))
+                .foregroundStyle(Theme.tertiary)
+            Text("No films match \"\(query)\"")
+                .font(.subheadline)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+            Text("Tap + to add something new.")
+                .font(.footnote)
+                .foregroundStyle(Theme.tertiary)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             TestCard()
@@ -208,7 +241,7 @@ struct WatchlistView: View {
 
     @ViewBuilder
     private var suggestionsSection: some View {
-        if !suggestions.isEmpty {
+        if !visibleSuggestions.isEmpty && !isSearching {
             HStack(spacing: 6) {
                 Text("Because of your list")
                     .font(.caption)
@@ -252,6 +285,11 @@ struct WatchlistView: View {
             )
         suggestions.removeAll { $0.id == preview.id }
         Task { try? await movie.refresh() }
+    }
+
+    private var visibleSuggestions: [MovieSearchResult] {
+        let hidden = ignored.ids(for: .movies)
+        return suggestions.filter { !hidden.contains($0.id) }
     }
 
     private func add(_ result: MovieSearchResult) {

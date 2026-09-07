@@ -786,6 +786,8 @@ struct AboutView: View {
     @AppStorage(Notifications.hourKey) private var notificationHour = 18
 
     @Query private var shows: [TrackedShow]
+    @Query(sort: \IgnoredTitle.addedAt, order: .reverse) private var ignored: [IgnoredTitle]
+    @Environment(\.modelContext) private var context
     @State private var original = AppSettings.region
 
     private func label(for hour: Int) -> String {
@@ -826,6 +828,30 @@ struct AboutView: View {
                     Text("Notifications")
                 } footer: {
                     Text("TMDB publishes air dates without times, so alerts fire at the hour you choose on the day a show airs.")
+                }
+
+                if !ignored.isEmpty {
+                    Section {
+                        ForEach(ignored) { item in
+                            HStack(spacing: 10) {
+                                Poster(path: item.posterPath, width: 28, height: 42, radius: 3)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.title)
+                                        .foregroundStyle(Theme.primary)
+                                    Text(item.kind == .tv ? "Show" : "Film")
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.tertiary)
+                                }
+                            }
+                        }
+                        .onDelete { offsets in
+                            for index in offsets { context.delete(ignored[index]) }
+                        }
+                    } header: {
+                        Text("Not interested")
+                    } footer: {
+                        Text("Hidden from suggestions. Swipe to put one back.")
+                    }
                 }
 
                 Section {
