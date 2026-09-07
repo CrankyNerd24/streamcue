@@ -102,7 +102,11 @@ struct OnboardingView: View {
         .padding(20)
     }
 
-    private func title(_ text: String, _ subtitle: String) -> some View {
+    private func title(
+        _ text: String,
+        _ subtitle: String,
+        note: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(text)
                 .font(.title2.weight(.semibold))
@@ -110,6 +114,12 @@ struct OnboardingView: View {
             Text(subtitle)
                 .font(.subheadline)
                 .foregroundStyle(Theme.secondary)
+            if let note {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.tertiary)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
@@ -121,7 +131,11 @@ struct OnboardingView: View {
 
     private var servicesStep: some View {
         VStack(spacing: 0) {
-            title("What do you pay for?", "So the app can tell you what's already included.")
+            title(
+                "What do you pay for?",
+                "So the app can tell you what's already included.",
+                note: "These are the most common ones. You can pick from the full list any time on the Services tab."
+            )
 
             HStack {
                 Text("Country")
@@ -187,7 +201,11 @@ struct OnboardingView: View {
 
     private var showsStep: some View {
         VStack(spacing: 0) {
-            title("Add a few shows", "Search for what you watch, or pick from what's popular.")
+            title(
+                "Add a few shows",
+                "Search for what you watch, or pick from what's popular.",
+                note: "Two or three is plenty to start. Add more any time with the + button, or from Discover."
+            )
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
@@ -262,7 +280,11 @@ struct OnboardingView: View {
 
     private var alertsStep: some View {
         VStack(spacing: 0) {
-            title("Want a nudge?", "A notification on the day something you track airs.")
+            title(
+                "Want a nudge?",
+                "A notification on the day something you track airs.",
+                note: "You can change this later in Settings."
+            )
 
             VStack(spacing: 0) {
                 Toggle("Air-date alerts", isOn: $notificationsEnabled)

@@ -22,6 +22,17 @@ struct TitlePreview: Identifiable {
         self.isTracked = isTracked
     }
 
+    init(_ credit: PersonCredit, isTracked: Bool) {
+        self.id = credit.tmdbID
+        self.kind = credit.kind
+        self.title = credit.displayTitle ?? "Untitled"
+        self.posterPath = credit.posterPath
+        self.overview = credit.overview ?? ""
+        self.score = credit.score
+        self.subtitle = [credit.year, credit.role].compactMap { $0 }.joined(separator: " · ")
+        self.isTracked = isTracked
+    }
+
     init(_ movie: MovieSearchResult, isTracked: Bool) {
         self.id = movie.id
         self.kind = .movies
@@ -30,6 +41,74 @@ struct TitlePreview: Identifiable {
         self.overview = movie.overview
         self.score = movie.score
         self.subtitle = movie.year
+        self.isTracked = isTracked
+    }
+}
+
+/// A TV or film result flattened into one type, so a mixed grid (a studio's
+/// whole catalogue, say) can hold both without branching everywhere.
+struct CatalogItem: Identifiable {
+    let tmdbID: Int
+    let kind: MediaKind
+    let title: String
+    let posterPath: String?
+    let overview: String
+    let score: String?
+    let year: String?
+    var popularity: Double = 0
+
+    var id: String { "\(kind.rawValue)-\(tmdbID)" }
+
+    init(
+        tmdbID: Int,
+        kind: MediaKind,
+        title: String,
+        posterPath: String?,
+        overview: String,
+        score: String?,
+        year: String?
+    ) {
+        self.tmdbID = tmdbID
+        self.kind = kind
+        self.title = title
+        self.posterPath = posterPath
+        self.overview = overview
+        self.score = score
+        self.year = year
+    }
+
+    init(_ show: TVSearchResult) {
+        tmdbID = show.id
+        kind = .tv
+        title = show.name
+        posterPath = show.posterPath
+        overview = show.overview
+        score = show.score
+        year = show.year
+        popularity = show.popularity ?? 0
+    }
+
+    init(_ movie: MovieSearchResult) {
+        tmdbID = movie.id
+        kind = .movies
+        title = movie.title
+        posterPath = movie.posterPath
+        overview = movie.overview
+        score = movie.score
+        year = movie.year
+        popularity = movie.popularity ?? 0
+    }
+}
+
+extension TitlePreview {
+    init(_ item: CatalogItem, isTracked: Bool) {
+        self.id = item.tmdbID
+        self.kind = item.kind
+        self.title = item.title
+        self.posterPath = item.posterPath
+        self.overview = item.overview
+        self.score = item.score
+        self.subtitle = item.year
         self.isTracked = isTracked
     }
 }

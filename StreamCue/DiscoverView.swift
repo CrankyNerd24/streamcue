@@ -62,6 +62,7 @@ struct DiscoverView: View {
     @State private var errorMessage: String?
     @State private var providers = ProviderCache()
     @State private var preview: TitlePreview?
+    @State private var isSearchingPeople = false
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
 
@@ -170,6 +171,18 @@ struct DiscoverView: View {
                 }
             }
             .navigationTitle("Discover")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isSearchingPeople = true
+                    } label: {
+                        Label("Look up", systemImage: "magnifyingglass")
+                    }
+                }
+            }
+            .sheet(isPresented: $isSearchingPeople) {
+                LookupView()
+            }
             .sheet(item: $preview) { preview in
                 TitlePreviewSheet(preview: preview) { addFromPreview(preview) }
             }

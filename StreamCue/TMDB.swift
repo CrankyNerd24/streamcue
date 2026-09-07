@@ -20,9 +20,10 @@ struct TVSearchResult: Decodable, Identifiable, Sendable {
     let posterPath: String?
     let firstAirDate: String?
     let voteAverage: Double?
+    let popularity: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, overview
+        case id, name, overview, popularity
         case posterPath = "poster_path"
         case firstAirDate = "first_air_date"
         case voteAverage = "vote_average"
@@ -127,9 +128,10 @@ struct MovieSearchResult: Decodable, Identifiable, Sendable {
     let posterPath: String?
     let releaseDate: String?
     let voteAverage: Double?
+    let popularity: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, overview
+        case id, title, overview, popularity
         case posterPath = "poster_path"
         case releaseDate = "release_date"
         case voteAverage = "vote_average"
@@ -164,6 +166,116 @@ struct MovieDetails: Decodable {
         case releaseDate = "release_date"
         case voteAverage = "vote_average"
         case externalIds = "external_ids"
+    }
+}
+
+// MARK: - People
+
+struct PersonSearchResponse: Decodable {
+    let results: [PersonResult]
+}
+
+struct PersonResult: Decodable, Identifiable, Sendable {
+    let id: Int
+    let name: String
+    let profilePath: String?
+    let knownForDepartment: String?
+    let popularity: Double?
+    let knownFor: [PersonCredit]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, popularity
+        case profilePath = "profile_path"
+        case knownForDepartment = "known_for_department"
+        case knownFor = "known_for"
+    }
+
+    /// "Acting · Fringe, Dollhouse"
+    var summary: String {
+        var parts: [String] = []
+        if let knownForDepartment { parts.append(knownForDepartment) }
+        let titles = (knownFor ?? []).prefix(2).compactMap(\.displayTitle)
+        if !titles.isEmpty { parts.append(titles.joined(separator: ", ")) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+struct PersonCreditsResponse: Decodable {
+    let cast: [PersonCredit]?
+    let crew: [PersonCredit]?
+}
+
+/// One entry from a person's filmography. Covers both TV and film, so it
+/// carries both `name` and `title` and picks whichever is populated.
+struct PersonCredit: Decodable, Identifiable, Sendable {
+    let tmdbID: Int
+    let mediaType: String?
+    let name: String?
+    let title: String?
+    let overview: String?
+    let posterPath: String?
+    let voteAverage: Double?
+    let popularity: Double?
+    let firstAirDate: String?
+    let releaseDate: String?
+    let character: String?
+    let job: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name, title, overview, character, job, popularity
+        case tmdbID = "id"
+        case mediaType = "media_type"
+        case posterPath = "poster_path"
+        case voteAverage = "vote_average"
+        case firstAirDate = "first_air_date"
+        case releaseDate = "release_date"
+    }
+
+    /// A show and a film can share a numeric id, so the list key needs both.
+    var id: String { "\(mediaType ?? "?")-\(tmdbID)" }
+
+    var kind: MediaKind { mediaType == "movie" ? .movies : .tv }
+
+    var displayTitle: String? {
+        let value = kind == .movies ? title : name
+        return (value?.isEmpty ?? true) ? nil : value
+    }
+
+    var year: String? {
+        let raw = kind == .movies ? releaseDate : firstAirDate
+        guard let raw, raw.count >= 4 else { return nil }
+        return String(raw.prefix(4))
+    }
+
+    var score: String? {
+        guard let voteAverage, voteAverage > 0 else { return nil }
+        return String(format: "%.1f", voteAverage)
+    }
+
+    /// "Ellie" for cast, "Director" for crew.
+    var role: String? {
+        if let character, !character.isEmpty { return character }
+        if let job, !job.isEmpty { return job }
+        return nil
+    }
+}
+
+// MARK: - Companies
+
+struct CompanySearchResponse: Decodable {
+    let results: [CompanyResult]
+}
+
+struct CompanyResult: Decodable, Identifiable, Sendable {
+    let id: Int
+    let name: String
+    let logoPath: String?
+    let originCountry: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case logoPath = "logo_path"
+        case originCountry = "origin_country"
     }
 }
 
@@ -260,6 +372,65 @@ struct TMDBClient: Sendable {
             "/tv/\(id)",
             query: [URLQueryItem(name: "append_to_response", value: "external_ids")]
         )
+    }
+
+    func searchCompanies(_ query: String) async throws -> [CompanyResult] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let response: CompanySearchResponse = try await get(
+            "/search/company",
+            query: [URLQueryItem(name: "query", value: trimmed)]
+        )
+        return response.results
+    }
+
+    /// Films a company produced. TMDB filters server-side by company id.
+    func movies(fromCompanyID id: Int, page: Int = 1) async throws -> [MovieSearchResult] {
+        let response: MovieSearchResponse = try await get(
+            "/discover/movie",
+            query: [
+                URLQueryItem(name: "with_companies", value: String(id)),
+                URLQueryItem(name: "sort_by", value: "popularity.desc"),
+                URLQueryItem(name: "page", value: String(page))
+            ]
+        )
+        return response.results
+    }
+
+    func shows(fromCompanyID id: Int, page: Int = 1) async throws -> [TVSearchResult] {
+        let response: TVSearchResponse = try await get(
+            "/discover/tv",
+            query: [
+                URLQueryItem(name: "with_companies", value: String(id)),
+                URLQueryItem(name: "sort_by", value: "popularity.desc"),
+                URLQueryItem(name: "page", value: String(page))
+            ]
+        )
+        return response.results
+    }
+
+    func searchPeople(_ query: String) async throws -> [PersonResult] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let response: PersonSearchResponse = try await get(
+            "/search/person",
+            query: [URLQueryItem(name: "query", value: trimmed)]
+        )
+        return response.results
+    }
+
+    /// Everything a person has been in, cast and crew, TV and film. Deduped
+    /// because someone who wrote and directed the same film appears twice.
+    func credits(forPersonID id: Int) async throws -> [PersonCredit] {
+        let response: PersonCreditsResponse = try await get("/person/\(id)/combined_credits")
+        let all = (response.cast ?? []) + (response.crew ?? [])
+
+        var seen = Set<String>()
+        let unique = all.filter { seen.insert($0.id).inserted }
+
+        return unique
+            .filter { $0.displayTitle != nil && $0.posterPath != nil }
+            .sorted { ($0.popularity ?? 0) > ($1.popularity ?? 0) }
     }
 
     func season(showID: Int, number: Int) async throws -> SeasonDetails {
@@ -474,6 +645,11 @@ enum TMDBImage {
     static func poster(_ path: String?, width: Int = 342) -> URL? {
         guard let path else { return nil }
         return URL(string: "https://image.tmdb.org/t/p/w\(width)\(path)")
+    }
+
+    static func profile(_ path: String?) -> URL? {
+        guard let path else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w185\(path)")
     }
 
     static func logo(_ path: String?) -> URL? {
