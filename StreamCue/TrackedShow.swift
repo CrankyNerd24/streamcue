@@ -1,0 +1,118 @@
+import Foundation
+import SwiftData
+
+@Model
+final class TrackedShow {
+    @Attribute(.unique) var tmdbID: Int
+    var name: String
+    var posterPath: String?
+    var status: String
+    var nextEpisodeLabel: String?
+    var nextAirDate: Date?
+    var lastEpisodeLabel: String?
+    var subscriptionOn: [String]
+    var freeOn: [String]
+    var rentOrBuyOn: [String]
+    var addedAt: Date
+    var lastRefreshed: Date?
+    var reminderID: String?
+    var genreIDs: [Int] = []
+    var overview: String = ""
+    var nextEpisodeOverview: String?
+    var lastAiredSeason: Int?
+
+    // Ratings
+    var imdbID: String?
+    var tmdbScore: Double?
+    var tmdbVotes: Int?
+    var imdbScore: String?
+    var rottenTomatoesScore: String?
+    var metacriticScore: String?
+
+    init(tmdbID: Int, name: String, posterPath: String? = nil) {
+        self.tmdbID = tmdbID
+        self.name = name
+        self.posterPath = posterPath
+        self.status = ""
+        self.subscriptionOn = []
+        self.freeOn = []
+        self.rentOrBuyOn = []
+        self.addedAt = .now
+    }
+}
+
+extension TrackedShow {
+    /// Human-readable line for the list row.
+    var scheduleSummary: String {
+        if let nextAirDate {
+            let when = nextAirDate.formatted(.dateTime.weekday(.abbreviated).month().day())
+            return [nextEpisodeLabel, when].compactMap { $0 }.joined(separator: " · ")
+        }
+        switch status {
+        case "Ended": return "Ended"
+        case "Canceled", "Cancelled": return "Canceled"
+        case "Returning Series": return "Returning — no date announced"
+        default: return status.isEmpty ? "Not loaded yet" : status
+        }
+    }
+
+    var isFreeSomewhere: Bool { !freeOn.isEmpty }
+
+    /// Best single score to show in a compact space.
+    var headlineRating: String? {
+        if let imdbScore { return "IMDb \(imdbScore)" }
+        if let tmdbScore, tmdbScore > 0 {
+            return "TMDB \(String(format: "%.1f", tmdbScore))"
+        }
+        return nil
+    }
+
+    var hasAnyRating: Bool {
+        imdbScore != nil || rottenTomatoesScore != nil
+            || metacriticScore != nil || (tmdbScore ?? 0) > 0
+    }
+
+    /// How long data stays good enough to skip on a background refresh.
+    static let staleAfter: TimeInterval = 6 * 60 * 60
+
+    var isStale: Bool {
+        guard let lastRefreshed else { return true }
+        return Date().timeIntervalSince(lastRefreshed) > Self.staleAfter
+    }
+
+    /// - Parameter includeRatings: pass false on automatic refreshes. Ratings
+    ///   are still fetched for shows that have none, but OMDb's daily quota is
+    ///   small and scores barely move, so it isn't worth spending on every open.
+    @MainActor
+    func refresh(includeRatings: Bool = true) async throws {
+        let details = try await TMDBClient.shared.details(id: tmdbID)
+        let availability = try await TMDBClient.shared.availability(id: tmdbID)
+
+        name = details.name
+        posterPath = details.posterPath
+        status = details.status
+        tmdbScore = details.voteAverage
+        tmdbVotes = details.voteCount
+        genreIDs = (details.genres ?? []).map(\.id)
+        imdbID = details.externalIds?.imdbId
+        overview = details.overview
+        nextEpisodeOverview = details.nextEpisodeToAir?.overview
+        nextEpisodeLabel = details.nextEpisodeToAir?.label
+        nextAirDate = TMDBDate.parse(details.nextEpisodeToAir?.airDate)
+        lastEpisodeLabel = details.lastEpisodeToAir?.label
+        lastAiredSeason = details.lastEpisodeToAir?.seasonNumber
+        subscriptionOn = availability.subscription
+        freeOn = availability.free
+        rentOrBuyOn = availability.rentOrBuy
+        lastRefreshed = .now
+
+        // Ratings are a bonus — never let a failure here break the refresh.
+        if includeRatings || imdbScore == nil, let imdbID, !imdbID.isEmpty {
+            if let scores = try? await OMDbClient.shared.scores(imdbID: imdbID) {
+                imdbScore = scores.imdb
+                rottenTomatoesScore = scores.rottenTomatoes
+                metacriticScore = scores.metacritic
+            }
+        }
+    }
+}
