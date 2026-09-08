@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# Append the just-created commit's subject to CHANGELOG.md under [Unreleased],
+# then fold the change into that same commit via --amend.
+#
+# A post-commit hook is used (not commit-msg) because commit-msg runs after git
+# has already snapshotted the tree, so staging there does not reach the commit.
+#
+# Skips: merge commits, reverts, and changelog-housekeeping commits.
+# Recursion from the --amend below is prevented by a guard file.
+
+guard=".git/CHANGELOG_HOOK_RUNNING"
+[ -f "$guard" ] && exit 0
+
+changelog="CHANGELOG.md"
+[ -f "$changelog" ] || exit 0
+
+subject=$(git log -1 --pretty=%s)
+[ -n "$subject" ] || exit 0
+
+case "$subject" in
+    Merge\ *|Revert\ *|"update changelog"*) exit 0 ;;
+esac
+
+# Already logged, or no section to log into -> nothing to do.
+grep -Fq -- "- $subject" "$changelog" && exit 0
+grep -q '^## \[Unreleased\]' "$changelog" || exit 0
+
+# Insert the bullet immediately after the "## [Unreleased]" header.
+tmp=$(mktemp)
+awk -v entry="- $subject" '
+    { print }
+    /^## \[Unreleased\]/ && !done {
+        print ""
+        print entry
+        done = 1
+    }
+' "$changelog" > "$tmp" && mv "$tmp" "$changelog"
+
+git add "$changelog"
+
+# Fold into the current commit. --no-verify keeps other hooks out of the amend;
+# the guard file stops this post-commit from recursing on the amend.
+touch "$guard"
+git commit --amend --no-edit --no-verify >/dev/null 2>&1
+rm -f "$guard"
+exit 0
