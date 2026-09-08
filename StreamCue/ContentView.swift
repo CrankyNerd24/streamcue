@@ -49,14 +49,14 @@ struct ContentView: View {
 
     /// Everything with a known date, soonest first.
     private var dated: [TrackedShow] {
-        visible.filter { $0.nextAirDate != nil }
-            .sorted { ($0.nextAirDate ?? .distantFuture) < ($1.nextAirDate ?? .distantFuture) }
+        visible.filter { $0.effectiveAirDate != nil }
+            .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
 
     /// On today. Gets the card treatment and the colour-bar spine.
     private var airingToday: [TrackedShow] {
         dated.filter { show in
-            guard let date = show.nextAirDate else { return false }
+            guard let date = show.effectiveAirDate else { return false }
             return Calendar.current.isDateInToday(date)
         }
     }
@@ -65,7 +65,7 @@ struct ContentView: View {
     /// so the screen has a focal point even on a night with nothing on.
     private var upNext: [TrackedShow] {
         let laterOn = dated.filter { show in
-            guard let date = show.nextAirDate else { return false }
+            guard let date = show.effectiveAirDate else { return false }
             return !Calendar.current.isDateInToday(date)
         }
         return Array(laterOn.prefix(1))
@@ -77,11 +77,11 @@ struct ContentView: View {
     }
 
     private var finished: [TrackedShow] {
-        visible.filter { $0.nextAirDate == nil && Self.endedStatuses.contains($0.status) }
+        visible.filter { $0.effectiveAirDate == nil && Self.endedStatuses.contains($0.status) }
     }
 
     private var waiting: [TrackedShow] {
-        visible.filter { $0.nextAirDate == nil && !Self.endedStatuses.contains($0.status) }
+        visible.filter { $0.effectiveAirDate == nil && !Self.endedStatuses.contains($0.status) }
     }
 
     private static let endedStatuses: Set<String> = ["Ended", "Canceled", "Cancelled"]
@@ -422,7 +422,7 @@ struct ContentView: View {
 
     /// Shows that could take a reminder: dated, and not already carrying one.
     private var remindable: [TrackedShow] {
-        shows.filter { $0.nextAirDate != nil && $0.reminderID == nil }
+        shows.filter { $0.effectiveAirDate != nil && $0.reminderID == nil }
     }
 
     private var reminded: [TrackedShow] {
@@ -438,7 +438,7 @@ struct ContentView: View {
         var skipped = 0
 
         for show in remindable {
-            guard let airDate = show.nextAirDate else { continue }
+            guard let airDate = show.effectiveAirDate else { continue }
 
             var components = calendar.dateComponents([.year, .month, .day], from: airDate)
             components.hour = Notifications.hour
@@ -731,7 +731,7 @@ extension TrackedShow {
 
     /// "S02E04 · Tonight" today, "S02E04 · Thu 11 Sep" otherwise.
     var heroSchedule: String {
-        guard let date = nextAirDate else { return scheduleSummary }
+        guard let date = effectiveAirDate else { return scheduleSummary }
         let when = Calendar.current.isDateInToday(date)
             ? "Tonight"
             : date.formatted(.dateTime.weekday(.abbreviated).month().day())
@@ -848,6 +848,7 @@ struct AboutView: View {
     @AppStorage(AppSettings.regionKey) private var region = "US"
     @AppStorage(Notifications.enabledKey) private var notificationsEnabled = false
     @AppStorage(Notifications.hourKey) private var notificationHour = 18
+    @AppStorage(Notifications.privateKey) private var privateNotifications = false
 
     @Query private var shows: [TrackedShow]
     @Query(sort: \IgnoredTitle.addedAt, order: .reverse) private var ignored: [IgnoredTitle]
@@ -883,6 +884,9 @@ struct AboutView: View {
                         .tint(Theme.tonight)
 
                     if notificationsEnabled {
+                        Toggle("Hide details", isOn: $privateNotifications)
+                            .tint(Theme.tonight)
+
                         Picker("Alert me at", selection: $notificationHour) {
                             ForEach(Array(stride(from: 7, through: 22, by: 1)), id: \.self) { hour in
                                 Text(label(for: hour)).tag(hour)
@@ -892,7 +896,9 @@ struct AboutView: View {
                 } header: {
                     Text("Notifications")
                 } footer: {
-                    Text("TMDB publishes air dates without times, so alerts fire at the hour you choose on the day a show airs.")
+                    Text(privateNotifications
+                         ? "Alerts won't name the show, so nothing shows on your lock screen. One alert per day rather than one per show."
+                         : "TMDB publishes air dates without times, so alerts fire at the hour you choose on the day a show airs.")
                 }
 
                 if !ignored.isEmpty {
@@ -945,6 +951,9 @@ struct AboutView: View {
                 }
             }
             .onChange(of: notificationHour) { _, _ in
+                Task { await Notifications.reschedule(for: shows) }
+            }
+            .onChange(of: privateNotifications) { _, _ in
                 Task { await Notifications.reschedule(for: shows) }
             }
             .navigationTitle("Settings")

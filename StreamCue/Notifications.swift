@@ -12,6 +12,13 @@ enum Notifications {
         UserDefaults.standard.bool(forKey: enabledKey)
     }
 
+    /// When on, alerts name nothing — no show title, no episode, no service.
+    static let privateKey = "privateNotifications"
+
+    static var isPrivate: Bool {
+        UserDefaults.standard.bool(forKey: privateKey)
+    }
+
     static var hour: Int {
         let stored = UserDefaults.standard.integer(forKey: hourKey)
         return stored == 0 ? 18 : stored
@@ -45,14 +52,40 @@ enum Notifications {
 
         let calendar = Calendar.current
 
+        // Private mode collapses to one alert per day. Scheduling one per show
+        // would otherwise stack identical anonymous notifications, which tells
+        // an onlooker how many things you watch without telling you anything.
+        if isPrivate {
+            var counts: [DateComponents: Int] = [:]
+            for show in shows {
+                guard let fire = fireDate(for: show, calendar: calendar) else { continue }
+                counts[calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire),
+                       default: 0] += 1
+            }
+
+            for (components, count) in counts {
+                let content = UNMutableNotificationContent()
+                content.title = "Airing today"
+                content.body = count == 1
+                    ? "Something you track airs today."
+                    : "\(count) things you track air today."
+                content.sound = .default
+
+                let request = UNNotificationRequest(
+                    identifier: "day-\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(
+                        dateMatching: components,
+                        repeats: false
+                    )
+                )
+                try? await center.add(request)
+            }
+            return
+        }
+
         for show in shows {
-            guard let airDate = show.nextAirDate else { continue }
-
-            var components = calendar.dateComponents([.year, .month, .day], from: airDate)
-            components.hour = hour
-            components.minute = 0
-
-            guard let fireDate = calendar.date(from: components), fireDate > .now else { continue }
+            guard let fire = fireDate(for: show, calendar: calendar) else { continue }
 
             let content = UNMutableNotificationContent()
             content.title = show.name
@@ -62,7 +95,7 @@ enum Notifications {
             let trigger = UNCalendarNotificationTrigger(
                 dateMatching: calendar.dateComponents(
                     [.year, .month, .day, .hour, .minute],
-                    from: fireDate
+                    from: fire
                 ),
                 repeats: false
             )
@@ -74,6 +107,16 @@ enum Notifications {
             )
             try? await center.add(request)
         }
+    }
+
+    /// The show's air date at the user's chosen hour, or nil if that's passed.
+    private static func fireDate(for show: TrackedShow, calendar: Calendar) -> Date? {
+        guard let airDate = show.effectiveAirDate else { return nil }
+        var components = calendar.dateComponents([.year, .month, .day], from: airDate)
+        components.hour = hour
+        components.minute = 0
+        guard let fire = calendar.date(from: components), fire > .now else { return nil }
+        return fire
     }
 
     private static func body(for show: TrackedShow) -> String {

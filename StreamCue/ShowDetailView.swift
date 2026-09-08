@@ -58,9 +58,9 @@ struct ShowDetailView: View {
                 }
             }
 
-            Section("Schedule") {
+            Section {
                 LabeledContent("Next") {
-                    Text(show.nextAirDate == nil ? "No date announced" : show.scheduleSummary)
+                    Text(show.effectiveAirDate == nil ? "No date announced" : show.scheduleSummary)
                         .multilineTextAlignment(.trailing)
                 }
                 if let synopsis = show.nextEpisodeOverview, !synopsis.isEmpty {
@@ -70,11 +70,25 @@ struct ShowDetailView: View {
                             .foregroundStyle(Theme.secondary)
                     }
                 }
+                Stepper(value: $show.dayOffset, in: -7...14) {
+                    HStack {
+                        Text("Day offset")
+                        Spacer()
+                        Text(offsetLabel)
+                            .foregroundStyle(show.dayOffset == 0 ? Theme.tertiary : Theme.tonight)
+                            .monospacedDigit()
+                    }
+                }
+
                 if let last = show.lastEpisodeLabel {
                     LabeledContent("Last aired") {
                         Text(last).multilineTextAlignment(.trailing)
                     }
                 }
+            } header: {
+                Text("Schedule")
+            } footer: {
+                Text("Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.")
             }
 
             if !show.freeOn.isEmpty {
@@ -99,7 +113,7 @@ struct ShowDetailView: View {
                 }
             }
 
-            if show.nextAirDate != nil {
+            if show.effectiveAirDate != nil {
                 Section {
                     Button {
                         Task { await toggleReminder() }
@@ -150,6 +164,16 @@ struct ShowDetailView: View {
         }
     }
 
+    private var offsetLabel: String {
+        switch show.dayOffset {
+        case 0: return "None"
+        case 1: return "+1 day"
+        case -1: return "−1 day"
+        case let value where value > 0: return "+\(value) days"
+        case let value: return "−\(abs(value)) days"
+        }
+    }
+
     private func toggleReminder() async {
         isWorkingOnReminder = true
         errorMessage = nil
@@ -161,7 +185,7 @@ struct ShowDetailView: View {
             return
         }
 
-        guard let airDate = show.nextAirDate else { return }
+        guard let airDate = show.effectiveAirDate else { return }
         var components = Calendar.current.dateComponents([.year, .month, .day], from: airDate)
         components.hour = Notifications.hour
         components.minute = 0

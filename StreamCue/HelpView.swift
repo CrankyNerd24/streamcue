@@ -41,6 +41,10 @@ struct HelpView: View {
                 answer: "Dates are the original network's air date, which isn't always the day it appears where you are. A UK series you watch a day later, or something that drops at 3am, will legitimately sit on a different day. There's no time attached to the date at all — only the day."
             ),
             Entry(
+                question: "A show reaches me on a different day.",
+                answer: "Open it and use the day offset on the Schedule section. It shifts that show's dates everywhere — the list, alerts and reminders all follow it. Episodes already in Ready to watch keep the date they were recorded with."
+            ),
+            Entry(
                 question: "What is “Ready to watch”?",
                 answer: "Episodes that have already aired and you haven't marked off. The green check means watched, the ✕ means skip it. Either one clears it from the list. It only looks back 30 days, and clears entries older than 60."
             ),

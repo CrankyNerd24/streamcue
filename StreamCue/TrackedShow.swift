@@ -24,6 +24,11 @@ final class TrackedShow {
     var nextEpisodeOverview: String?
     var lastAiredSeason: Int?
 
+    /// Days to shift TMDB's air date by, for shows that reach you later than
+    /// the original broadcast. Applied through `effectiveAirDate` — never read
+    /// `nextAirDate` directly for anything user-facing.
+    var dayOffset: Int = 0
+
     // Ratings
     var imdbID: String?
     var tmdbScore: Double?
@@ -45,10 +50,19 @@ final class TrackedShow {
 }
 
 extension TrackedShow {
+    /// The air date as it applies to you. Every grouping, label, notification
+    /// and reminder reads this rather than `nextAirDate`, so a shifted show
+    /// can't say Thursday in one place and Wednesday in another.
+    var effectiveAirDate: Date? {
+        guard let nextAirDate else { return nil }
+        guard dayOffset != 0 else { return nextAirDate }
+        return Calendar.current.date(byAdding: .day, value: dayOffset, to: nextAirDate)
+    }
+
     /// Human-readable line for the list row.
     var scheduleSummary: String {
-        if let nextAirDate {
-            let when = nextAirDate.formatted(.dateTime.weekday(.abbreviated).month().day())
+        if let effectiveAirDate {
+            let when = effectiveAirDate.formatted(.dateTime.weekday(.abbreviated).month().day())
             return [nextEpisodeLabel, when].compactMap { $0 }.joined(separator: " · ")
         }
         switch status {

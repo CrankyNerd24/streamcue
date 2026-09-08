@@ -80,9 +80,16 @@ enum EpisodeSync {
 
         for episode in season.episodes {
             guard let number = episode.episodeNumber,
-                  let airDate = TMDBDate.parse(episode.airDate),
-                  airDate <= .now,
-                  airDate >= cutoff else { continue }
+                  let broadcast = TMDBDate.parse(episode.airDate) else { continue }
+
+            // Bake the show's offset in at sync time. Changing the offset later
+            // won't retouch episodes already recorded — they age out within 60
+            // days, which isn't worth a lookup from every episode to its show.
+            let airDate = show.dayOffset == 0
+                ? broadcast
+                : Calendar.current.date(byAdding: .day, value: show.dayOffset, to: broadcast) ?? broadcast
+
+            guard airDate <= .now, airDate >= cutoff else { continue }
 
             let key = "\(show.tmdbID)-\(seasonNumber)-\(number)"
             var descriptor = FetchDescriptor<PendingEpisode>(
