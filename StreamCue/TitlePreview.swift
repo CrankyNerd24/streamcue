@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// A title you haven't tracked yet, shown before you commit to adding it.
 struct TitlePreview: Identifiable {
