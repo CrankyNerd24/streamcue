@@ -21,6 +21,7 @@ struct ContentView: View {
     @AppStorage("serviceFilter") private var serviceFilterRaw = ""
     @AppStorage("freeOnly") private var freeOnly = false
     @AppStorage("lastAutoRefresh") private var lastAutoRefresh: Double = 0
+    @AppStorage("readyExpanded") private var isReadyExpanded = true
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -51,23 +52,27 @@ struct ContentView: View {
             .sorted { ($0.nextAirDate ?? .distantFuture) < ($1.nextAirDate ?? .distantFuture) }
     }
 
-    /// Anything airing today gets the hero treatment. If nothing is on today,
-    /// the single soonest show is promoted instead, so the screen always has
-    /// a focal point rather than collapsing into uniform rows.
-    private var hero: [TrackedShow] {
-        let today = dated.filter { Calendar.current.isDateInToday($0.nextAirDate!) }
-        if !today.isEmpty { return today }
-        return Array(dated.prefix(1))
+    /// On today. Gets the card treatment and the colour-bar spine.
+    private var airingToday: [TrackedShow] {
+        dated.filter { show in
+            guard let date = show.nextAirDate else { return false }
+            return Calendar.current.isDateInToday(date)
+        }
+    }
+
+    /// The single soonest show that isn't on today. Card treatment, no spine —
+    /// so the screen has a focal point even on a night with nothing on.
+    private var upNext: [TrackedShow] {
+        let laterOn = dated.filter { show in
+            guard let date = show.nextAirDate else { return false }
+            return !Calendar.current.isDateInToday(date)
+        }
+        return Array(laterOn.prefix(1))
     }
 
     private var upcoming: [TrackedShow] {
-        let promoted = Set(hero.map(\.tmdbID))
+        let promoted = Set(airingToday.map(\.tmdbID)).union(upNext.map(\.tmdbID))
         return dated.filter { !promoted.contains($0.tmdbID) }
-    }
-
-    private var heroTitle: String {
-        guard let first = hero.first, let date = first.nextAirDate else { return "Up next" }
-        return Calendar.current.isDateInToday(date) ? "Tonight" : "Up next"
     }
 
     private var finished: [TrackedShow] {
@@ -225,34 +230,23 @@ struct ContentView: View {
                 .plainRow()
             }
 
-            if !pending.isEmpty {
-                header("Ready to watch", accented: true, color: Theme.unwatched)
-                ForEach(pending) { episode in
-                    PendingEpisodeCard(
-                        episode: episode,
-                        onWatched: { episode.watched = true },
-                        onDismiss: { episode.dismissed = true }
-                    )
-                    .plainRow()
+            if !airingToday.isEmpty {
+                header("Airing today", accented: true)
+                ForEach(airingToday) { show in
+                    heroRow(show, isTonight: true)
                 }
+                .onDelete { remove(airingToday, at: $0) }
             }
 
-            if !hero.isEmpty {
-                header(heroTitle, accented: true)
-                ForEach(hero) { show in
-                    NavigationLink(destination: ShowDetailView(show: show)) {
-                        TonightCard(
-                            show: show,
-                            isTonight: show.nextAirDate.map {
-                                Calendar.current.isDateInToday($0)
-                            } ?? false
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .plainRow()
+            if !upNext.isEmpty {
+                header("Up next")
+                ForEach(upNext) { show in
+                    heroRow(show, isTonight: false)
                 }
-                .onDelete { remove(hero, at: $0) }
+                .onDelete { remove(upNext, at: $0) }
             }
+
+            readySection
 
             section("Airing next", upcoming)
             section("No date announced", waiting)
@@ -311,6 +305,59 @@ struct ContentView: View {
         .padding(.top, 14)
         .padding(.bottom, 2)
         .plainRow()
+    }
+
+    private func heroRow(_ show: TrackedShow, isTonight: Bool) -> some View {
+        NavigationLink(destination: ShowDetailView(show: show)) {
+            TonightCard(show: show, isTonight: isTonight)
+        }
+        .buttonStyle(.plain)
+        .plainRow()
+    }
+
+    /// Collapsible, and expanded by default — these are actionable, unlike the
+    /// watched list on the Movies tab which is an archive.
+    @ViewBuilder
+    private var readySection: some View {
+        if !pending.isEmpty {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isReadyExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Theme.unwatched)
+                        .rotationEffect(.degrees(isReadyExpanded ? 90 : 0))
+                    Text("Ready to watch")
+                        .font(.caption)
+                        .kerning(0.5)
+                        .foregroundStyle(Theme.unwatched)
+                    Text("\(pending.count)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.tertiary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 14)
+            .padding(.bottom, 2)
+            .plainRow()
+
+            if isReadyExpanded {
+                ForEach(pending) { episode in
+                    PendingEpisodeCard(
+                        episode: episode,
+                        onWatched: { episode.watched = true },
+                        onDismiss: { episode.dismissed = true }
+                    )
+                    .plainRow()
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -828,6 +875,14 @@ struct AboutView: View {
                     Text("Notifications")
                 } footer: {
                     Text("TMDB publishes air dates without times, so alerts fire at the hour you choose on the day a show airs.")
+                }
+
+                Section {
+                    NavigationLink {
+                        HelpView()
+                    } label: {
+                        Label("Help", systemImage: "questionmark.circle")
+                    }
                 }
 
                 if !ignored.isEmpty {
