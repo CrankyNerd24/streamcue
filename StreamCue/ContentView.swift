@@ -12,6 +12,7 @@ struct ContentView: View {
 
     @State private var isAdding = false
     @State private var isShowingAbout = false
+    @State private var isShowingHelp = false
     @State private var isShowingFilter = false
     @State private var isRefreshing = false
     @State private var isConfirmingReminders = false
@@ -138,6 +139,16 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $isAdding) { AddShowView() }
+            .sheet(isPresented: $isShowingHelp) {
+                NavigationStack {
+                    HelpView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { isShowingHelp = false }
+                            }
+                        }
+                }
+            }
             .sheet(isPresented: $isShowingAbout) {
                 AboutView { Task { await refreshAll() } }
             }
@@ -187,6 +198,12 @@ struct ContentView: View {
                     isShowingAbout = true
                 } label: {
                     Label("Settings", systemImage: "gearshape")
+                }
+
+                Button {
+                    isShowingHelp = true
+                } label: {
+                    Label("Help", systemImage: "questionmark.circle")
                 }
             } label: {
                 Label("Menu", systemImage: "ellipsis.circle")
@@ -836,6 +853,7 @@ struct AboutView: View {
     @Query(sort: \IgnoredTitle.addedAt, order: .reverse) private var ignored: [IgnoredTitle]
     @Environment(\.modelContext) private var context
     @State private var original = AppSettings.region
+    @State private var isShowingIgnored = false
 
     private func label(for hour: Int) -> String {
         var components = DateComponents()
@@ -877,35 +895,37 @@ struct AboutView: View {
                     Text("TMDB publishes air dates without times, so alerts fire at the hour you choose on the day a show airs.")
                 }
 
-                Section {
-                    NavigationLink {
-                        HelpView()
-                    } label: {
-                        Label("Help", systemImage: "questionmark.circle")
-                    }
-                }
-
                 if !ignored.isEmpty {
                     Section {
-                        ForEach(ignored) { item in
-                            HStack(spacing: 10) {
-                                Poster(path: item.posterPath, width: 28, height: 42, radius: 3)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.title)
-                                        .foregroundStyle(Theme.primary)
-                                    Text(item.kind == .tv ? "Show" : "Film")
-                                        .font(.caption2)
-                                        .foregroundStyle(Theme.tertiary)
+                        DisclosureGroup(isExpanded: $isShowingIgnored) {
+                            ForEach(ignored) { item in
+                                HStack(spacing: 10) {
+                                    Poster(path: item.posterPath, width: 28, height: 42, radius: 3)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(item.title)
+                                            .foregroundStyle(Theme.primary)
+                                        Text(item.kind == .tv ? "Show" : "Film")
+                                            .font(.caption2)
+                                            .foregroundStyle(Theme.tertiary)
+                                    }
                                 }
                             }
+                            .onDelete { offsets in
+                                for index in offsets { context.delete(ignored[index]) }
+                            }
+                        } label: {
+                            HStack {
+                                Text("Not interested")
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                Text("\(ignored.count)")
+                                    .font(.footnote)
+                                    .monospacedDigit()
+                                    .foregroundStyle(Theme.tertiary)
+                            }
                         }
-                        .onDelete { offsets in
-                            for index in offsets { context.delete(ignored[index]) }
-                        }
-                    } header: {
-                        Text("Not interested")
                     } footer: {
-                        Text("Hidden from suggestions. Swipe to put one back.")
+                        Text("Hidden from suggestions. Swipe one to put it back.")
                     }
                 }
 
