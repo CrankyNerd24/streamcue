@@ -1,28 +1,5 @@
 import SwiftUI
 
-/// Reports how far a scroll view has travelled, so a jump-to-top control can
-/// stay hidden until it's actually useful.
-struct ScrollOffsetKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-extension View {
-    /// Place at the very top of a scroll view's content.
-    func reportsScrollOffset(in space: String) -> some View {
-        background(
-            GeometryReader { geometry in
-                Color.clear.preference(
-                    key: ScrollOffsetKey.self,
-                    value: geometry.frame(in: .named(space)).minY
-                )
-            }
-        )
-    }
-}
-
 /// iOS already scrolls to top when you tap the status bar, but almost nobody
 /// knows that. This appears only after a long scroll so it isn't permanent
 /// furniture.
@@ -44,5 +21,18 @@ struct BackToTopButton: View {
         .padding(.bottom, 16)
         .transition(.scale.combined(with: .opacity))
         .accessibilityLabel("Back to top")
+    }
+}
+
+extension View {
+    /// Reports how far the scroll view has travelled from the top.
+    /// Uses the system's own scroll geometry rather than a GeometryReader
+    /// preference, which proved unreliable inside a lazy grid.
+    func trackScrollDistance(_ distance: Binding<CGFloat>) -> some View {
+        onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, newValue in
+            distance.wrappedValue = newValue
+        }
     }
 }

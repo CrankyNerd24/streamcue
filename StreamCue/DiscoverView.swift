@@ -91,7 +91,6 @@ struct DiscoverView: View {
                 Color.clear
                     .frame(height: 0)
                     .id("top")
-                    .reportsScrollOffset(in: "discover")
 
                 VStack(spacing: 8) {
                     Picker("Kind", selection: $kind) {
@@ -177,18 +176,15 @@ struct DiscoverView: View {
                     )
                 }
             }
-            .coordinateSpace(name: "discover")
-            .onPreferenceChange(ScrollOffsetKey.self) { value in
-                Task { @MainActor in scrollOffset = value }
-            }
+            .trackScrollDistance($scrollOffset)
             .overlay(alignment: .bottomTrailing) {
-                if scrollOffset < -800 {
+                if scrollOffset > 500 {
                     BackToTopButton {
                         withAnimation { proxy.scrollTo("top", anchor: .top) }
                     }
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: scrollOffset < -800)
+            .animation(.easeInOut(duration: 0.2), value: scrollOffset > 500)
             .navigationTitle("Discover")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
