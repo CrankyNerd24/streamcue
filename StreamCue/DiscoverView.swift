@@ -63,6 +63,7 @@ struct DiscoverView: View {
     @State private var providers = ProviderCache()
     @State private var preview: TitlePreview?
     @State private var isSearchingPeople = false
+    @State private var scrollOffset: CGFloat = 0
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
 
@@ -85,7 +86,13 @@ struct DiscoverView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
+                Color.clear
+                    .frame(height: 0)
+                    .id("top")
+                    .reportsScrollOffset(in: "discover")
+
                 VStack(spacing: 8) {
                     Picker("Kind", selection: $kind) {
                         ForEach(MediaKind.allCases) { kind in
@@ -170,6 +177,18 @@ struct DiscoverView: View {
                     )
                 }
             }
+            .coordinateSpace(name: "discover")
+            .onPreferenceChange(ScrollOffsetKey.self) { value in
+                Task { @MainActor in scrollOffset = value }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if scrollOffset < -800 {
+                    BackToTopButton {
+                        withAnimation { proxy.scrollTo("top", anchor: .top) }
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: scrollOffset < -800)
             .navigationTitle("Discover")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -188,6 +207,7 @@ struct DiscoverView: View {
             }
             .task(id: "\(kind.rawValue)-\(feed.rawValue)") { await load() }
             .refreshable { await load() }
+            }
         }
     }
 
