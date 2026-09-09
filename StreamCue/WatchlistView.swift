@@ -509,6 +509,7 @@ struct MovieDetailView: View {
 
     @State private var isRefreshing = false
     @State private var errorMessage: String?
+    @State private var cast: [CastMember] = []
 
     var body: some View {
         List {
@@ -552,6 +553,12 @@ struct MovieDetailView: View {
                     .tint(Theme.free)
             }
 
+            if !cast.isEmpty {
+                Section("Cast") {
+                    CastStrip(cast: cast)
+                }
+            }
+
             if !movie.freeOn.isEmpty {
                 Section("Free") { ForEach(movie.freeOn, id: \.self, content: Text.init) }
             }
@@ -588,6 +595,12 @@ struct MovieDetailView: View {
         }
         .task {
             if movie.lastRefreshed == nil { await refresh() }
+        }
+        .task {
+            cast = (try? await TMDBClient.shared.cast(
+                forID: movie.tmdbID,
+                kind: .movies
+            )) ?? []
         }
     }
 

@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- added searchable cast view strip to all preview and detail pages
+
 - corrected hero card callouts
 
 - add changelog with auto-append commit hook

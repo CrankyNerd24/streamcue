@@ -6,6 +6,7 @@ struct ShowDetailView: View {
 
     @State private var isRefreshing = false
     @State private var isWorkingOnReminder = false
+    @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
 
     var body: some View {
@@ -91,6 +92,12 @@ struct ShowDetailView: View {
                 Text("Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.")
             }
 
+            if !cast.isEmpty {
+                Section("Cast") {
+                    CastStrip(cast: cast)
+                }
+            }
+
             if !show.freeOn.isEmpty {
                 Section("Free") {
                     ForEach(show.freeOn, id: \.self, content: Text.init)
@@ -161,6 +168,12 @@ struct ShowDetailView: View {
         }
         .task {
             if show.lastRefreshed == nil { await refresh() }
+        }
+        .task {
+            cast = (try? await TMDBClient.shared.cast(
+                forID: show.tmdbID,
+                kind: .tv
+            )) ?? []
         }
     }
 

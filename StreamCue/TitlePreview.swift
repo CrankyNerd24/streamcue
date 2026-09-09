@@ -122,6 +122,7 @@ struct TitlePreviewSheet: View {
     @Environment(\.modelContext) private var context
     @State private var availability: Availability?
     @State private var isLoading = true
+    @State private var cast: [CastMember] = []
 
     var body: some View {
         NavigationStack {
@@ -160,6 +161,8 @@ struct TitlePreviewSheet: View {
                             .font(.subheadline)
                             .foregroundStyle(Theme.secondary)
                     }
+
+                    castSection
 
                     availabilitySection
 
@@ -213,6 +216,20 @@ struct TitlePreviewSheet: View {
                 }
             }
             .task { await loadAvailability() }
+            .task { await loadCast() }
+        }
+    }
+
+    @ViewBuilder
+    private var castSection: some View {
+        if !cast.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Cast")
+                    .font(.caption)
+                    .kerning(0.5)
+                    .foregroundStyle(Theme.tertiary)
+                CastStrip(cast: cast)
+            }
         }
     }
 
@@ -256,6 +273,13 @@ struct TitlePreviewSheet: View {
                 .font(.footnote)
                 .foregroundStyle(colour)
         }
+    }
+
+    private func loadCast() async {
+        cast = (try? await TMDBClient.shared.cast(
+            forID: preview.id,
+            kind: preview.kind
+        )) ?? []
     }
 
     private func loadAvailability() async {

@@ -462,6 +462,7 @@ struct CatalogView: View {
 
 struct ProfilePhoto: View {
     let path: String?
+    var size: CGFloat = 44
 
     var body: some View {
         AsyncImage(url: TMDBImage.profile(path)) { image in
@@ -473,7 +474,7 @@ struct ProfilePhoto: View {
                     .foregroundStyle(Theme.tertiary)
             }
         }
-        .frame(width: 44, height: 44)
+        .frame(width: size, height: size)
         .clipShape(Circle())
     }
 }

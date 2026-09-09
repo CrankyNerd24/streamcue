@@ -260,6 +260,25 @@ struct PersonCredit: Decodable, Identifiable, Sendable {
     }
 }
 
+// MARK: - Cast
+
+struct CreditsResponse: Decodable {
+    let cast: [CastMember]?
+}
+
+struct CastMember: Decodable, Identifiable, Sendable {
+    let id: Int
+    let name: String
+    let character: String?
+    let profilePath: String?
+    let order: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, character, order
+        case profilePath = "profile_path"
+    }
+}
+
 // MARK: - Companies
 
 struct CompanySearchResponse: Decodable {
@@ -372,6 +391,14 @@ struct TMDBClient: Sendable {
             "/tv/\(id)",
             query: [URLQueryItem(name: "append_to_response", value: "external_ids")]
         )
+    }
+
+    /// Billed cast for a show or film, in credit order.
+    func cast(forID id: Int, kind: MediaKind) async throws -> [CastMember] {
+        let path = kind == .tv ? "/tv/\(id)/credits" : "/movie/\(id)/credits"
+        let response: CreditsResponse = try await get(path)
+        return (response.cast ?? [])
+            .sorted { ($0.order ?? .max) < ($1.order ?? .max) }
     }
 
     func searchCompanies(_ query: String) async throws -> [CompanyResult] {
