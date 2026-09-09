@@ -61,14 +61,12 @@ struct ContentView: View {
         }
     }
 
-    /// The single soonest show that isn't on today. Card treatment, no spine —
-    /// so the screen has a focal point even on a night with nothing on.
+    /// The soonest show that isn't on today — but only when nothing is on
+    /// today. Two card sections at once competed with each other, so this
+    /// stands in as the focal point rather than sitting alongside one.
     private var upNext: [TrackedShow] {
-        let laterOn = dated.filter { show in
-            guard let date = show.effectiveAirDate else { return false }
-            return !Calendar.current.isDateInToday(date)
-        }
-        return Array(laterOn.prefix(1))
+        guard airingToday.isEmpty else { return [] }
+        return Array(dated.prefix(1))
     }
 
     private var upcoming: [TrackedShow] {

@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- corrected hero card callouts
+
 - add changelog with auto-append commit hook
 
 ## [2.1.0] - 2026-09-08
