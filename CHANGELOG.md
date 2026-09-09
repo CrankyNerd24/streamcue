@@ -5,11 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- added searchable cast view strip to all preview and detail pages
+## [2.2.0] - 2026-09-09
+### Added
+- Searchable cast view strip on all preview and detail pages
+- Changelog with auto-append commit hook
 
-- corrected hero card callouts
-
-- add changelog with auto-append commit hook
+### Fixed
+- Corrected hero card callouts
 
 ## [2.1.0] - 2026-09-08
 ### Added
