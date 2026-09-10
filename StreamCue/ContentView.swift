@@ -132,8 +132,13 @@ struct ContentView: View {
             }
             .task { await autoRefresh() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active {
+                switch phase {
+                case .active:
                     Task { await autoRefresh() }
+                case .background:
+                    BackgroundRefresh.schedule()
+                default:
+                    break
                 }
             }
             .sheet(isPresented: $isAdding) { AddShowView() }
@@ -508,6 +513,7 @@ struct ContentView: View {
         Library.deduplicate(context: context)
         isRefreshing = false
         await Notifications.reschedule(for: shows)
+        await ReminderSync.sync(shows)
     }
 
     /// Runs when the app opens or returns to the foreground. Skips entirely if
@@ -532,6 +538,7 @@ struct ContentView: View {
         Library.deduplicate(context: context)
         isRefreshing = false
         await Notifications.reschedule(for: shows)
+        await ReminderSync.sync(shows)
     }
 }
 
@@ -847,6 +854,7 @@ struct AboutView: View {
     @AppStorage(Notifications.enabledKey) private var notificationsEnabled = false
     @AppStorage(Notifications.hourKey) private var notificationHour = 18
     @AppStorage(Notifications.privateKey) private var privateNotifications = false
+    @AppStorage(ReminderSync.autoKey) private var autoReminders = false
 
     @Query private var shows: [TrackedShow]
     @Query(sort: \IgnoredTitle.addedAt, order: .reverse) private var ignored: [IgnoredTitle]
@@ -934,6 +942,13 @@ struct AboutView: View {
                 }
 
                 Section {
+                    Toggle("Add to Reminders automatically", isOn: $autoReminders)
+                        .tint(Theme.free)
+                } footer: {
+                    Text("Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access.")
+                }
+
+                Section {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
@@ -953,6 +968,10 @@ struct AboutView: View {
             }
             .onChange(of: privateNotifications) { _, _ in
                 Task { await Notifications.reschedule(for: shows) }
+            }
+            .onChange(of: autoReminders) { _, enabled in
+                guard enabled else { return }
+                Task { await ReminderSync.sync(shows) }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

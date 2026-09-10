@@ -34,6 +34,10 @@ struct StreamCueApp: App {
             RootView()
         }
         .modelContainer(container)
+        .backgroundTask(.appRefresh(BackgroundRefresh.taskID)) {
+            await BackgroundRefresh.run(container: container)
+            await BackgroundRefresh.schedule()
+        }
     }
 }
 

@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added Background Refresh and Automated Reminder Add
+
 ## [2.2.0] - 2026-09-09
 ### Added
 - Searchable cast view strip on all preview and detail pages

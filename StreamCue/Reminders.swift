@@ -56,3 +56,60 @@ final class RemindersService {
         try? store.remove(reminder, commit: true)
     }
 }
+
+/// Keeps Reminders in step with air dates, optionally without being asked.
+@MainActor
+enum ReminderSync {
+    static let autoKey = "autoReminders"
+
+    static var isAutomatic: Bool {
+        UserDefaults.standard.bool(forKey: autoKey)
+    }
+
+    /// The show's air date at the notification hour, or nil if it's passed.
+    static func due(for show: TrackedShow) -> Date? {
+        guard let airDate = show.effectiveAirDate else { return nil }
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: airDate)
+        components.hour = Notifications.hour
+        components.minute = 0
+        guard let due = Calendar.current.date(from: components), due > .now else { return nil }
+        return due
+    }
+
+    /// Creates reminders for anything dated that doesn't have one, and moves
+    /// any whose date has shifted since. Returns how many it wrote.
+    @discardableResult
+    static func sync(_ shows: [TrackedShow], force: Bool = false) async -> Int {
+        guard force || isAutomatic else { return 0 }
+
+        var written = 0
+        for show in shows {
+            guard let due = due(for: show) else { continue }
+
+            // Date moved since the reminder was made — replace it.
+            if let existing = show.reminderID,
+               let previous = show.reminderDate,
+               previous != due {
+                await RemindersService.shared.remove(identifier: existing)
+                show.reminderID = nil
+                show.reminderDate = nil
+            }
+
+            guard show.reminderID == nil else { continue }
+
+            do {
+                show.reminderID = try await RemindersService.shared.add(
+                    title: "Watch \(show.name)",
+                    notes: show.nextEpisodeLabel,
+                    due: due
+                )
+                show.reminderDate = due
+                written += 1
+            } catch {
+                // Access denied or no list — no point trying the rest.
+                return written
+            }
+        }
+        return written
+    }
+}

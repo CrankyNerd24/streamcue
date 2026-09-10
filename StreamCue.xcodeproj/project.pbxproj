@@ -10,9 +10,22 @@
 		04BC9D02304F132E00EAF3A7 /* StreamCue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreamCue.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		04BC9DC830522ADB00EAF3A7 /* Exceptions for "StreamCue" folder in "StreamCue" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 04BC9D01304F132E00EAF3A7 /* StreamCue */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		04BC9D04304F132E00EAF3A7 /* StreamCue */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				04BC9DC830522ADB00EAF3A7 /* Exceptions for "StreamCue" folder in "StreamCue" target */,
+			);
 			path = StreamCue;
 			sourceTree = "<group>";
 		};
@@ -258,6 +271,7 @@
 				DEVELOPMENT_TEAM = 3HZK9H958K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StreamCue/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -296,6 +310,7 @@
 				DEVELOPMENT_TEAM = 3HZK9H958K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StreamCue/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

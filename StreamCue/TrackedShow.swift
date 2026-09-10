@@ -19,6 +19,10 @@ final class TrackedShow {
     var addedAt: Date = Date.now
     var lastRefreshed: Date?
     var reminderID: String?
+
+    /// The air date the reminder was created for. Lets a shifted date replace
+    /// a stale reminder instead of leaving one pointing at the wrong day.
+    var reminderDate: Date?
     var genreIDs: [Int] = []
     var overview: String = ""
     var nextEpisodeOverview: String?
