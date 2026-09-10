@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- StreamCue v2
+
 - Fixed Discover tab lag and stutter
 
 - Added Background Refresh and Automated Reminder Add
