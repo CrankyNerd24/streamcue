@@ -20,11 +20,27 @@ final class ProviderCache {
         badges[key(id, kind)] ?? nil
     }
 
+    /// Cap on simultaneous provider lookups. Twenty tiles arriving at once
+    /// would otherwise fire twenty requests that compete with poster
+    /// downloads and trip TMDB's rate limit. Skipped tiles pick theirs up the
+    /// next time they scroll into view.
+    private let maxConcurrent = 5
+
     func load(_ id: Int, kind: MediaKind) async {
         let cacheKey = key(id, kind)
-        guard badges[cacheKey] == nil, !inFlight.contains(cacheKey) else { return }
+        guard badges[cacheKey] == nil,
+              !inFlight.contains(cacheKey),
+              inFlight.count < maxConcurrent else { return }
         inFlight.insert(cacheKey)
         defer { inFlight.remove(cacheKey) }
+
+        // Tiles you scroll straight past never get here — .task is cancelled
+        // when the tile leaves the screen, which throws out of the sleep.
+        do {
+            try await Task.sleep(for: .milliseconds(350))
+        } catch {
+            return
+        }
 
         let availability: Availability?
         switch kind {
@@ -70,14 +86,21 @@ struct DiscoverView: View {
     /// Anything already tracked is dropped — a browse screen shouldn't show
     /// you things you've got. Computed rather than filtered at load time so
     /// adding a title removes it from the grid immediately.
+    // Sets, not linear scans. With a hundred loaded results and forty tracked
+    // titles, `contains` per tile was thousands of comparisons every render.
+    private var trackedShowIDs: Set<Int> { Set(tracked.map(\.tmdbID)) }
+    private var trackedMovieIDs: Set<Int> { Set(trackedMovies.map(\.tmdbID)) }
+
     private var visibleShows: [TVSearchResult] {
         let hidden = ignored.ids(for: .tv)
-        return showResults.filter { !isTracked($0.id) && !hidden.contains($0.id) }
+        let owned = trackedShowIDs
+        return showResults.filter { !owned.contains($0.id) && !hidden.contains($0.id) }
     }
 
     private var visibleMovies: [MovieSearchResult] {
         let hidden = ignored.ids(for: .movies)
-        return movieResults.filter { !isTrackedMovie($0.id) && !hidden.contains($0.id) }
+        let owned = trackedMovieIDs
+        return movieResults.filter { !owned.contains($0.id) && !hidden.contains($0.id) }
     }
 
     private var isEmptyForYou: Bool {
@@ -231,23 +254,19 @@ struct DiscoverView: View {
         onTap: @escaping () -> Void
     ) -> some View {
         PosterTile(
+            id: id,
+            kind: kind,
             title: title,
             posterPath: posterPath,
             score: score,
             isTracked: isTracked,
-            badge: providers.badge(for: id, kind: kind),
+            providers: providers,
             onTap: onTap
         )
-        .task { await providers.load(id, kind: kind) }
     }
 
-    private func isTracked(_ id: Int) -> Bool {
-        tracked.contains { $0.tmdbID == id }
-    }
-
-    private func isTrackedMovie(_ id: Int) -> Bool {
-        trackedMovies.contains { $0.tmdbID == id }
-    }
+    private func isTracked(_ id: Int) -> Bool { trackedShowIDs.contains(id) }
+    private func isTrackedMovie(_ id: Int) -> Bool { trackedMovieIDs.contains(id) }
 
     // MARK: - Loading
 
@@ -423,20 +442,28 @@ struct DiscoverView: View {
 // MARK: - Tile
 
 struct PosterTile: View {
+    let id: Int
+    let kind: MediaKind
     let title: String
     let posterPath: String?
     let score: String?
     let isTracked: Bool
-    let badge: ProviderCache.Badge?
+
+    /// Read here rather than in the parent. With Observation, whichever body
+    /// reads the cache depends on it — reading in DiscoverView meant every
+    /// provider response redrew the entire grid.
+    let providers: ProviderCache
     let onTap: () -> Void
+
+    private var badge: ProviderCache.Badge? {
+        providers.badge(for: id, kind: kind)
+    }
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
                 ZStack(alignment: .topTrailing) {
-                    AsyncImage(url: TMDBImage.poster(posterPath, width: 342)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
+                    CachedImage(url: TMDBImage.poster(posterPath, width: 342)) {
                         Rectangle().fill(Theme.posterWell)
                     }
                     .aspectRatio(2.0 / 3.0, contentMode: .fit)
@@ -479,5 +506,6 @@ struct PosterTile: View {
         }
         .buttonStyle(.plain)
         .opacity(isTracked ? 0.55 : 1)
+        .task { await providers.load(id, kind: kind) }
     }
 }

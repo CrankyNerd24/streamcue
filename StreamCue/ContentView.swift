@@ -696,9 +696,7 @@ struct Poster: View {
     let radius: CGFloat
 
     var body: some View {
-        AsyncImage(url: TMDBImage.poster(path, width: 154)) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
+        CachedImage(url: TMDBImage.poster(path, width: 154)) {
             Rectangle().fill(Theme.posterWell)
         }
         .frame(width: width, height: height)

@@ -465,9 +465,7 @@ struct ProfilePhoto: View {
     var size: CGFloat = 44
 
     var body: some View {
-        AsyncImage(url: TMDBImage.profile(path)) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
+        CachedImage(url: TMDBImage.profile(path)) {
             ZStack {
                 Rectangle().fill(Theme.posterWell)
                 Image(systemName: "person.fill")

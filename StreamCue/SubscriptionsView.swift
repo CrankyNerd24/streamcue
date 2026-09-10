@@ -432,9 +432,7 @@ struct ServiceLogo: View {
     var size: CGFloat = 28
 
     var body: some View {
-        AsyncImage(url: TMDBImage.logo(path)) { image in
-            image.resizable().aspectRatio(contentMode: .fit)
-        } placeholder: {
+        CachedImage(url: TMDBImage.logo(path)) {
             RoundedRectangle(cornerRadius: 6).fill(Theme.posterWell)
         }
         .frame(width: size, height: size)

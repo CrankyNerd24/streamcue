@@ -76,11 +76,23 @@ struct HelpView: View {
             ),
             Entry(
                 question: "What's the difference between alerts and Reminders?",
-                answer: "Alerts are notifications from this app. Add to Reminders writes an entry into Apple's Reminders app instead, which syncs to your other devices and stays there even if you delete this app. The menu on the Shows tab can add one for everything with a confirmed date at once."
+                answer: "Alerts are notifications from this app — they appear once and are gone. A reminder is an entry in Apple's Reminders app, so it sits in a list you can tick off, follows you to your other devices through iCloud, and stays there even if you delete this app. You can use either or both."
+            ),
+            Entry(
+                question: "Can it add reminders on its own?",
+                answer: "Yes — turn on Add to Reminders automatically in Settings. Every show with a confirmed date gets one, and if a date later moves, the reminder moves with it. There's also a one-off Add all to Reminders in the Shows menu if you'd rather do it by hand."
+            ),
+            Entry(
+                question: "Can I stop alerts naming the show?",
+                answer: "Turn on Hide details under the alerts setting. Notifications then say only that something you track airs today, so nothing appears on your lock screen. In that mode you get one alert a day rather than one per show."
             ),
             Entry(
                 question: "I turned alerts on but nothing happens.",
                 answer: "They only fire for shows with a known upcoming date. If everything you track is between seasons, there's nothing to schedule."
+            ),
+            Entry(
+                question: "Reminders aren't being created.",
+                answer: "The first time it writes one, iOS asks for permission to your Reminders. If that was declined, nothing is written and no error appears — you can grant it again in the iOS Settings app under Privacy & Security. It also needs a default Reminders list to exist."
             )
         ]),
 
@@ -88,6 +100,10 @@ struct HelpView: View {
             Entry(
                 question: "How often does it update?",
                 answer: "When you open the app, if it hasn't checked in the last half hour — and even then only for shows more than six hours old. Pull down on any list, or use Refresh all in the menu, to update everything immediately."
+            ),
+            Entry(
+                question: "Does it update when the app is closed?",
+                answer: "It asks iOS to wake it about once a week to check air dates and rebuild alerts. iOS decides whether to actually run it, based on how often you use the app, your battery and your connection — so treat it as a bonus rather than something to rely on. Opening the app always refreshes."
             ),
             Entry(
                 question: "Ratings are missing.",

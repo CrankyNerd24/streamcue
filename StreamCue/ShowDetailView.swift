@@ -13,10 +13,8 @@ struct ShowDetailView: View {
         List {
             Section {
                 HStack(alignment: .top, spacing: 14) {
-                    AsyncImage(url: TMDBImage.poster(show.posterPath)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle().fill(.quaternary)
+                    CachedImage(url: TMDBImage.poster(show.posterPath)) {
+                        Rectangle().fill(Theme.posterWell)
                     }
                     .frame(width: 90, height: 135)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
