@@ -49,5 +49,10 @@ enum BackgroundRefresh {
         await ReminderSync.sync(shows)
 
         try? context.save()
+
+        let pendingCount = (try? context.fetchCount(
+            FetchDescriptor<PendingEpisode>(predicate: #Predicate { !$0.watched && !$0.dismissed })
+        )) ?? 0
+        await Notifications.updateBadge(pendingCount)
     }
 }

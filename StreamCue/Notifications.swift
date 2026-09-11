@@ -35,7 +35,31 @@ enum Notifications {
         case .denied:
             return false
         default:
-            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+            return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        }
+    }
+
+    /// Number of episodes waiting on the app icon. Clears itself when the
+    /// count reaches zero. Requires notification permission — without it iOS
+    /// silently ignores the badge.
+    static func updateBadge(_ count: Int) async {
+        try? await UNUserNotificationCenter.current().setBadgeCount(max(0, count))
+    }
+
+    /// Keeps the stored toggle honest against the system's actual permission
+    /// state. Nothing else notices when that drifts — a device-wide privacy
+    /// reset or the user revoking access in Settings both leave `isEnabled`
+    /// stuck at true with no alerts actually scheduled. Flipping it back to
+    /// false here means turning the toggle back on goes through
+    /// `requestPermission()` again instead of silently doing nothing.
+    static func syncEnabledState() async {
+        guard isEnabled else { return }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+            return
+        default:
+            UserDefaults.standard.set(false, forKey: enabledKey)
         }
     }
 

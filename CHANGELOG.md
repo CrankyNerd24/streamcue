@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add app icon badge for pending episodes
+
 - StreamCue v2
 
 - Fixed Discover tab lag and stutter

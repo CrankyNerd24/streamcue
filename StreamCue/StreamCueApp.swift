@@ -44,10 +44,15 @@ struct StreamCueApp: App {
 struct RootView: View {
     @AppStorage(OnboardingView.completedKey) private var hasCompletedSetup = false
 
+    /// Drives the tab badge — same filter the Ready to watch section uses.
+    @Query(filter: #Predicate<PendingEpisode> { !$0.watched && !$0.dismissed })
+    private var pending: [PendingEpisode]
+
     var body: some View {
         TabView {
             ContentView()
                 .tabItem { Label("My shows", systemImage: "list.bullet") }
+                .badge(pending.count)
 
             WatchlistView()
                 .tabItem { Label("Movies", systemImage: "film") }

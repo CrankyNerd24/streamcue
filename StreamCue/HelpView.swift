@@ -87,6 +87,10 @@ struct HelpView: View {
                 answer: "Turn on Hide details under the alerts setting. Notifications then say only that something you track airs today, so nothing appears on your lock screen. In that mode you get one alert a day rather than one per show."
             ),
             Entry(
+                question: "What's the number on the app icon?",
+                answer: "How many aired episodes are waiting in Ready to watch. Marking one watched or dismissing it brings the count down. The badge needs notification permission — if you declined that, iOS won't show it, though the number on the Shows tab still works."
+            ),
+            Entry(
                 question: "I turned alerts on but nothing happens.",
                 answer: "They only fire for shows with a known upcoming date. If everything you track is between seasons, there's nothing to schedule."
             ),

@@ -130,11 +130,18 @@ struct ContentView: View {
             } message: {
                 Text(reminderResult ?? "")
             }
-            .task { await autoRefresh() }
+            .task {
+                await Notifications.syncEnabledState()
+                await autoRefresh()
+            }
+            .task(id: pending.count) { await Notifications.updateBadge(pending.count) }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
-                    Task { await autoRefresh() }
+                    Task {
+                        await Notifications.syncEnabledState()
+                        await autoRefresh()
+                    }
                 case .background:
                     BackgroundRefresh.schedule()
                 default:
