@@ -115,7 +115,11 @@ struct HelpView: View {
             ),
             Entry(
                 question: "Where is my data kept?",
-                answer: "On this device. Nothing is uploaded and there's no account."
+                answer: "On this device and in your own iCloud account, so your list stays in step across your devices. There's no account to create and nothing is sent anywhere else — not to us, not to TMDB. Signing out of iCloud, or turning iCloud off for this app in Settings, leaves it working on the device alone."
+            ),
+            Entry(
+                question: "My other device is out of date.",
+                answer: "Syncing happens in the background and can take a few minutes — it isn't instant, and it waits for a good moment on battery and network. Both devices need to be signed into the same iCloud account. If something looks duplicated after one device has been offline a while, refreshing merges it."
             ),
             Entry(
                 question: "Discover looks empty.",
