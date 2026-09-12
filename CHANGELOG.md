@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add CLAUDE.md
+
 - Add app icon badge for pending episodes
 
 - StreamCue v2
