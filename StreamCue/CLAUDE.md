@@ -62,8 +62,4 @@ has the Add and Not interested buttons.
 
 ## Known gaps
 
-- CloudKit sync is written (`StreamCueApp.swift`) but needs a paid developer
-  account, which isn't available yet.
 - OMDb attribution is required by its CC BY-NC licence and isn't displayed.
-- The Help screen says data never leaves the device. That stops being true if
-  CloudKit is enabled.
