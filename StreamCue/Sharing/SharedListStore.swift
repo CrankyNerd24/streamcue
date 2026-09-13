@@ -19,6 +19,10 @@ final class SharedListStore {
         items.contains { $0.tmdbID == tmdbID && $0.kind == kind }
     }
 
+    func item(tmdbID: Int, kind: MediaKind) -> SharedItem? {
+        items.first { $0.tmdbID == tmdbID && $0.kind == kind }
+    }
+
     func refresh() async {
         isLoading = true
         defer { isLoading = false }

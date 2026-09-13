@@ -406,6 +406,8 @@ struct MovieRow: View {
     let movie: TrackedMovie
     var showsDivider: Bool = true
 
+    @Environment(SharedListStore.self) private var sharedList
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -423,6 +425,12 @@ struct MovieRow: View {
                 }
 
                 Spacer(minLength: 4)
+
+                if sharedList.contains(tmdbID: movie.tmdbID, kind: .movies) {
+                    Image(systemName: "person.2.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
 
                 if let score = movie.primaryScore {
                     VStack(alignment: .trailing, spacing: 0) {
@@ -638,21 +646,21 @@ struct MovieDetailView: View {
             }
 
             Section {
-                Button {
-                    Task { await addToHousehold() }
+                Button(role: isOnHouseholdList ? .destructive : nil) {
+                    Task { await toggleHousehold() }
                 } label: {
                     HStack {
                         Label(
-                            isOnHouseholdList ? "On household list" : "Add to household list",
-                            systemImage: isOnHouseholdList ? "checkmark" : "person.2"
+                            isOnHouseholdList ? "Remove from household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "person.2.slash" : "person.2"
                         )
                         Spacer()
                         if isAddingToHousehold { ProgressView() }
                     }
                 }
-                .disabled(isOnHouseholdList || isAddingToHousehold)
+                .disabled(isAddingToHousehold)
             } footer: {
-                Text("Adds an independent copy to the shared household list — removing it later from either list won't affect the other.")
+                Text("An independent copy on the shared household list — removing it later from either list won't affect the other.")
             }
 
             if let errorMessage {
@@ -699,15 +707,19 @@ struct MovieDetailView: View {
         sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
     }
 
-    private func addToHousehold() async {
+    private func toggleHousehold() async {
         isAddingToHousehold = true
         defer { isAddingToHousehold = false }
-        await sharedList.add(
-            tmdbID: movie.tmdbID,
-            kind: .movies,
-            title: movie.title,
-            posterPath: movie.posterPath
-        )
+        if let existing = sharedList.item(tmdbID: movie.tmdbID, kind: .movies) {
+            await sharedList.remove(existing)
+        } else {
+            await sharedList.add(
+                tmdbID: movie.tmdbID,
+                kind: .movies,
+                title: movie.title,
+                posterPath: movie.posterPath
+            )
+        }
     }
 }
 

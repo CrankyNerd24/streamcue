@@ -140,21 +140,21 @@ struct ShowDetailView: View {
             }
 
             Section {
-                Button {
-                    Task { await addToHousehold() }
+                Button(role: isOnHouseholdList ? .destructive : nil) {
+                    Task { await toggleHousehold() }
                 } label: {
                     HStack {
                         Label(
-                            isOnHouseholdList ? "On household list" : "Add to household list",
-                            systemImage: isOnHouseholdList ? "checkmark" : "person.2"
+                            isOnHouseholdList ? "Remove from household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "person.2.slash" : "person.2"
                         )
                         Spacer()
                         if isAddingToHousehold { ProgressView() }
                     }
                 }
-                .disabled(isOnHouseholdList || isAddingToHousehold)
+                .disabled(isAddingToHousehold)
             } footer: {
-                Text("Adds an independent copy to the shared household list — removing it later from either list won't affect the other.")
+                Text("An independent copy on the shared household list — removing it later from either list won't affect the other.")
             }
 
             if let errorMessage {
@@ -249,15 +249,19 @@ struct ShowDetailView: View {
         sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
     }
 
-    private func addToHousehold() async {
+    private func toggleHousehold() async {
         isAddingToHousehold = true
         defer { isAddingToHousehold = false }
-        await sharedList.add(
-            tmdbID: show.tmdbID,
-            kind: .tv,
-            title: show.name,
-            posterPath: show.posterPath
-        )
+        if let existing = sharedList.item(tmdbID: show.tmdbID, kind: .tv) {
+            await sharedList.remove(existing)
+        } else {
+            await sharedList.add(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                posterPath: show.posterPath
+            )
+        }
     }
 }
 

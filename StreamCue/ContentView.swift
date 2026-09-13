@@ -578,15 +578,24 @@ struct ContentView: View {
 struct TonightCard: View {
     let show: TrackedShow
 
+    @Environment(SharedListStore.self) private var sharedList
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Poster(path: show.posterPath, width: 62, height: 93, radius: 6)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(show.name)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(2)
+                HStack(spacing: 4) {
+                    Text(show.name)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(2)
+                    if sharedList.contains(tmdbID: show.tmdbID, kind: .tv) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                }
 
                 Text(show.heroSchedule)
                     .font(.subheadline)
@@ -673,6 +682,8 @@ struct CompactRow: View {
     let show: TrackedShow
     var showsDivider: Bool = true
 
+    @Environment(SharedListStore.self) private var sharedList
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -690,6 +701,12 @@ struct CompactRow: View {
                 }
 
                 Spacer(minLength: 4)
+
+                if sharedList.contains(tmdbID: show.tmdbID, kind: .tv) {
+                    Image(systemName: "person.2.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
 
                 if let value = show.primaryScore {
                     VStack(alignment: .trailing, spacing: 0) {
