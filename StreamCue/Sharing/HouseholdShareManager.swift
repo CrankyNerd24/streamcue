@@ -48,23 +48,18 @@ enum HouseholdShareManager {
     static func fetchOrCreateShare() async throws -> CKShare {
         try await ensureZoneExists()
 
-        if let existingShare = try await fetchExistingShare() {
-            return existingShare
-        }
-
-        do {
-            return try await createShare()
-        } catch {
-            // The root record can already exist on the server even though
-            // the fetch above just came back empty — e.g. a previous run
-            // created it and this fetch raced eventual consistency. Rather
-            // than fail outright on that collision, look again before
-            // giving up.
-            if let existingShare = try? await fetchExistingShare() {
+        // The root record can exist on the server without a share attached
+        // — e.g. an earlier run's share was stopped, or a prior create
+        // partially failed — so those two are checked and handled
+        // separately rather than treating "no share yet" as "start fresh".
+        if let rootRecord = try await fetchRootRecord() {
+            if let existingShare = try await fetchShare(attachedTo: rootRecord) {
                 return existingShare
             }
-            throw error
+            return try await createShare(for: rootRecord)
         }
+
+        return try await createShare(for: CKRecord(recordType: rootRecordType, recordID: rootRecordID))
     }
 
     /// Accepts an incoming household share. Called from `SceneDelegate` when
@@ -82,21 +77,24 @@ enum HouseholdShareManager {
         _ = try await privateDatabase.modifyRecordZones(saving: [zone], deleting: [])
     }
 
-    private static func fetchExistingShare() async throws -> CKShare? {
-        let rootRecord: CKRecord
+    private static func fetchRootRecord() async throws -> CKRecord? {
         do {
-            rootRecord = try await privateDatabase.record(for: rootRecordID)
+            return try await privateDatabase.record(for: rootRecordID)
         } catch let error as CKError where error.code == .unknownItem {
             return nil
         }
+    }
 
+    private static func fetchShare(attachedTo rootRecord: CKRecord) async throws -> CKShare? {
         guard let shareReference = rootRecord.share else { return nil }
         let shareRecord = try await privateDatabase.record(for: shareReference.recordID)
         return shareRecord as? CKShare
     }
 
-    private static func createShare() async throws -> CKShare {
-        let rootRecord = CKRecord(recordType: rootRecordType, recordID: rootRecordID)
+    /// Attaches a new share to `rootRecord`, which may already exist on the
+    /// server (with its real change tag) or be freshly constructed locally —
+    /// either way `modifyRecords` does the right thing (update vs. insert).
+    private static func createShare(for rootRecord: CKRecord) async throws -> CKShare {
         let share = CKShare(rootRecord: rootRecord)
         share[CKShare.SystemFieldKey.title] = "StreamCue household list" as CKRecordValue
         share.publicPermission = .none
