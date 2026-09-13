@@ -54,7 +54,14 @@ enum SharedListManager {
 
     static func fetchAll() async throws -> [SharedItem] {
         let context = try await resolveContext()
-        let query = CKQuery(recordType: SharedItem.recordType, predicate: NSPredicate(value: true))
+        // Not NSPredicate(value: true): a true predicate needs the system
+        // recordName field marked queryable, which isn't set up by default.
+        // Filtering on addedAt (a normal field, auto-indexed on first save)
+        // matches everything without that requirement.
+        let query = CKQuery(
+            recordType: SharedItem.recordType,
+            predicate: NSPredicate(format: "%K < %@", SharedItem.Field.addedAt, Date.distantFuture as NSDate)
+        )
         query.sortDescriptors = [NSSortDescriptor(key: SharedItem.Field.addedAt, ascending: false)]
 
         do {
