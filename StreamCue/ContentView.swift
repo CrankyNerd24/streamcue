@@ -264,7 +264,7 @@ struct ContentView: View {
             section("No date announced", waiting)
             section("Finished", finished)
 
-            HouseholdSection(kind: .tv)
+            HouseholdSection(kind: .tv, personalTmdbIDs: Set(shows.map(\.tmdbID)))
 
             Color.clear.frame(height: 12).plainRow()
         }

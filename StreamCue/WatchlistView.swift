@@ -115,7 +115,7 @@ struct WatchlistView: View {
 
             suggestionsSection
 
-            HouseholdSection(kind: .movies)
+            HouseholdSection(kind: .movies, personalTmdbIDs: Set(movies.map(\.tmdbID)))
 
             Color.clear.frame(height: 12).plainRow()
         }

@@ -65,10 +65,4 @@ final class SharedListStore {
         }
     }
 
-    func remove(at offsets: IndexSet, in kind: MediaKind) async {
-        let kindItems = items(for: kind)
-        for index in offsets {
-            await remove(kindItems[index])
-        }
-    }
 }
