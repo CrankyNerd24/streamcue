@@ -47,10 +47,6 @@ struct HelpView: View {
             Entry(
                 question: "What is “Ready to watch”?",
                 answer: "Episodes that have already aired and you haven't marked off. The green check means watched, the ✕ means skip it. Either one clears it from the list. It only looks back 30 days, and clears entries older than 60."
-            ),
-            Entry(
-                question: "Why is “Up next” showing when nothing is on tonight?",
-                answer: "So the screen always has a focal point. Airing today gets the colour bars down its edge; Up next is just the soonest thing coming, without them."
             )
         ]),
 

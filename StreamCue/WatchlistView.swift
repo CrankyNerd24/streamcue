@@ -418,10 +418,31 @@ struct AddMovieView: View {
     @State private var results: [MovieSearchResult] = []
     @State private var isSearching = false
     @State private var errorMessage: String?
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         NavigationStack {
             List {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Theme.tertiary)
+                    TextField("Film title", text: $query)
+                        .focused($isSearchFocused)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await search() } }
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                            results = []
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .plainRow()
+
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
@@ -462,8 +483,6 @@ struct AddMovieView: View {
                     )
                 }
             }
-            .searchable(text: $query, prompt: "Film title")
-            .onSubmit(of: .search) { Task { await search() } }
             .navigationTitle("Add a film")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -471,6 +490,7 @@ struct AddMovieView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .onAppear { isSearchFocused = true }
         }
     }
 

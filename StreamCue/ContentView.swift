@@ -62,16 +62,8 @@ struct ContentView: View {
         }
     }
 
-    /// The soonest show that isn't on today — but only when nothing is on
-    /// today. Two card sections at once competed with each other, so this
-    /// stands in as the focal point rather than sitting alongside one.
-    private var upNext: [TrackedShow] {
-        guard airingToday.isEmpty else { return [] }
-        return Array(dated.prefix(1))
-    }
-
     private var upcoming: [TrackedShow] {
-        let promoted = Set(airingToday.map(\.tmdbID)).union(upNext.map(\.tmdbID))
+        let promoted = Set(airingToday.map(\.tmdbID))
         return dated.filter { !promoted.contains($0.tmdbID) }
     }
 
@@ -261,17 +253,9 @@ struct ContentView: View {
             if !airingToday.isEmpty {
                 header("Airing today", accented: true)
                 ForEach(airingToday) { show in
-                    heroRow(show, isTonight: true)
+                    heroRow(show)
                 }
                 .onDelete { remove(airingToday, at: $0) }
-            }
-
-            if !upNext.isEmpty {
-                header("Up next")
-                ForEach(upNext) { show in
-                    heroRow(show, isTonight: false)
-                }
-                .onDelete { remove(upNext, at: $0) }
             }
 
             readySection
@@ -335,9 +319,9 @@ struct ContentView: View {
         .plainRow()
     }
 
-    private func heroRow(_ show: TrackedShow, isTonight: Bool) -> some View {
+    private func heroRow(_ show: TrackedShow) -> some View {
         NavigationLink(destination: ShowDetailView(show: show)) {
-            TonightCard(show: show, isTonight: isTonight)
+            TonightCard(show: show)
         }
         .buttonStyle(.plain)
         .plainRow()
@@ -555,10 +539,6 @@ struct ContentView: View {
 struct TonightCard: View {
     let show: TrackedShow
 
-    /// The colour-bar spine is reserved for something airing today. A promoted
-    /// "up next" show gets the card treatment without the flag.
-    var isTonight: Bool = true
-
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Poster(path: show.posterPath, width: 62, height: 93, radius: 6)
@@ -596,12 +576,10 @@ struct TonightCard: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .padding(.leading, isTonight ? 6 : 0)
+        .padding(.leading, 6)
         .background(Theme.card)
         .overlay(alignment: .leading) {
-            if isTonight {
-                ColorBarSpine().frame(width: 4)
-            }
+            ColorBarSpine().frame(width: 4)
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
