@@ -57,10 +57,18 @@ enum SharedListManager {
         let query = CKQuery(recordType: SharedItem.recordType, predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: SharedItem.Field.addedAt, ascending: false)]
 
-        let (matches, _) = try await context.database.records(matching: query, inZoneWith: context.zoneID)
-        return matches.compactMap { _, result in
-            guard case .success(let record) = result else { return nil }
-            return SharedItem(record: record)
+        do {
+            let (matches, _) = try await context.database.records(matching: query, inZoneWith: context.zoneID)
+            return matches.compactMap { _, result in
+                guard case .success(let record) = result else { return nil }
+                return SharedItem(record: record)
+            }
+        } catch let error as CKError where error.code == .unknownItem {
+            // No SharedItem has ever been saved, so CloudKit's schema (which
+            // it infers from the first save, in Development) doesn't know
+            // the record type yet — that's "nothing on the list", not a
+            // real failure.
+            return []
         }
     }
 
