@@ -52,7 +52,19 @@ enum HouseholdShareManager {
             return existingShare
         }
 
-        return try await createShare()
+        do {
+            return try await createShare()
+        } catch {
+            // The root record can already exist on the server even though
+            // the fetch above just came back empty — e.g. a previous run
+            // created it and this fetch raced eventual consistency. Rather
+            // than fail outright on that collision, look again before
+            // giving up.
+            if let existingShare = try? await fetchExistingShare() {
+                return existingShare
+            }
+            throw error
+        }
     }
 
     /// Accepts an incoming household share. Called from `SceneDelegate` when
