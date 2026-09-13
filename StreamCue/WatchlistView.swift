@@ -115,6 +115,8 @@ struct WatchlistView: View {
 
             suggestionsSection
 
+            HouseholdSection(kind: .movies)
+
             Color.clear.frame(height: 12).plainRow()
         }
         .themedList()
@@ -530,6 +532,9 @@ struct MovieDetailView: View {
     @State private var isRefreshing = false
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
+    @State private var isAddingToHousehold = false
+
+    @Environment(SharedListStore.self) private var sharedList
 
     var body: some View {
         List {
@@ -595,6 +600,24 @@ struct MovieDetailView: View {
                 }
             }
 
+            Section {
+                Button {
+                    Task { await addToHousehold() }
+                } label: {
+                    HStack {
+                        Label(
+                            isOnHouseholdList ? "On household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "checkmark" : "person.2"
+                        )
+                        Spacer()
+                        if isAddingToHousehold { ProgressView() }
+                    }
+                }
+                .disabled(isOnHouseholdList || isAddingToHousehold)
+            } footer: {
+                Text("Adds an independent copy to the shared household list — removing it later from either list won't affect the other.")
+            }
+
             if let errorMessage {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
@@ -633,6 +656,21 @@ struct MovieDetailView: View {
             errorMessage = error.localizedDescription
         }
         isRefreshing = false
+    }
+
+    private var isOnHouseholdList: Bool {
+        sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+    }
+
+    private func addToHousehold() async {
+        isAddingToHousehold = true
+        defer { isAddingToHousehold = false }
+        await sharedList.add(
+            tmdbID: movie.tmdbID,
+            kind: .movies,
+            title: movie.title,
+            posterPath: movie.posterPath
+        )
     }
 }
 

@@ -264,6 +264,8 @@ struct ContentView: View {
             section("No date announced", waiting)
             section("Finished", finished)
 
+            HouseholdSection(kind: .tv)
+
             Color.clear.frame(height: 12).plainRow()
         }
         .themedList()
@@ -853,12 +855,6 @@ struct AboutView: View {
     @State private var householdShareError: String?
     @State private var isLoadingHouseholdShare = false
 
-    // Temporary, for verifying the shared-list CloudKit records before the
-    // real shared-list screen exists. Remove once that UI lands.
-    @State private var sharedItems: [SharedItem] = []
-    @State private var isLoadingSharedList = false
-    @State private var sharedListError: String?
-
     private func label(for hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
@@ -875,52 +871,6 @@ struct AboutView: View {
             isShowingHouseholdShare = true
         } catch {
             householdShareError = error.localizedDescription
-        }
-    }
-
-    private func loadSharedItems() async {
-        isLoadingSharedList = true
-        defer { isLoadingSharedList = false }
-        do {
-            sharedItems = try await SharedListManager.fetchAll()
-        } catch {
-            sharedListError = error.localizedDescription
-        }
-    }
-
-    private func addTestSharedItem() async {
-        isLoadingSharedList = true
-        defer { isLoadingSharedList = false }
-        do {
-            _ = try await SharedListManager.add(
-                tmdbID: Int.random(in: 1...999_999),
-                kind: .tv,
-                title: "Test item \(Date.now.formatted(.dateTime.hour().minute().second()))",
-                posterPath: nil
-            )
-            sharedItems = try await SharedListManager.fetchAll()
-        } catch {
-            sharedListError = error.localizedDescription
-        }
-    }
-
-    private func toggleWatched(_ item: SharedItem) async {
-        do {
-            try await SharedListManager.setWatched(item, watched: !item.watched)
-            sharedItems = try await SharedListManager.fetchAll()
-        } catch {
-            sharedListError = error.localizedDescription
-        }
-    }
-
-    private func deleteSharedItems(at offsets: IndexSet) {
-        Task {
-            do {
-                for index in offsets { try await SharedListManager.remove(sharedItems[index]) }
-                sharedItems = try await SharedListManager.fetchAll()
-            } catch {
-                sharedListError = error.localizedDescription
-            }
         }
     }
 
@@ -1007,7 +957,7 @@ struct AboutView: View {
                         Task { await presentHouseholdShare() }
                     } label: {
                         HStack {
-                            Text("Create / show household share (test)")
+                            Text("Invite to household list")
                             if isLoadingHouseholdShare {
                                 Spacer()
                                 ProgressView()
@@ -1016,43 +966,7 @@ struct AboutView: View {
                     }
                     .disabled(isLoadingHouseholdShare)
                 } footer: {
-                    Text("Temporary — verifies the CloudKit sharing plumbing works before the shared-list screen exists. CloudKit's own round trip can take a while, especially soon after setup changes.")
-                }
-
-                Section {
-                    Button {
-                        Task { await addTestSharedItem() }
-                    } label: {
-                        HStack {
-                            Text("Add test item to shared list")
-                            if isLoadingSharedList {
-                                Spacer()
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(isLoadingSharedList)
-
-                    ForEach(sharedItems) { item in
-                        Button {
-                            Task { await toggleWatched(item) }
-                        } label: {
-                            HStack {
-                                Text(item.title)
-                                    .foregroundStyle(Theme.primary)
-                                Spacer()
-                                if item.watched {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Theme.free)
-                                }
-                            }
-                        }
-                    }
-                    .onDelete(perform: deleteSharedItems)
-                } header: {
-                    Text("Shared list (test)")
-                } footer: {
-                    Text("Temporary — verifies shared-list CloudKit records read/write/toggle/delete correctly before the real screen exists. Tap an item to toggle watched.")
+                    Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                 }
 
                 Section {
@@ -1077,18 +991,6 @@ struct AboutView: View {
             } message: {
                 Text(householdShareError ?? "")
             }
-            .alert(
-                "Shared list error",
-                isPresented: Binding(
-                    get: { sharedListError != nil },
-                    set: { if !$0 { sharedListError = nil } }
-                )
-            ) {
-                Button("OK") { sharedListError = nil }
-            } message: {
-                Text(sharedListError ?? "")
-            }
-            .task { await loadSharedItems() }
             .onChange(of: notificationsEnabled) { _, enabled in
                 Task {
                     if enabled, await Notifications.requestPermission() == false {

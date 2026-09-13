@@ -47,6 +47,7 @@ struct StreamCueApp: App {
 
 struct RootView: View {
     @AppStorage(OnboardingView.completedKey) private var hasCompletedSetup = false
+    @State private var sharedList = SharedListStore()
 
     /// Drives the tab badge — same filter the Ready to watch section uses.
     @Query(filter: #Predicate<PendingEpisode> { !$0.watched && !$0.dismissed })
@@ -69,6 +70,19 @@ struct RootView: View {
         }
         .tint(Theme.primary)
         .preferredColorScheme(.dark)
+        .environment(sharedList)
+        .task { await sharedList.refresh() }
+        .alert(
+            "Household list error",
+            isPresented: Binding(
+                get: { sharedList.errorMessage != nil },
+                set: { if !$0 { sharedList.errorMessage = nil } }
+            )
+        ) {
+            Button("OK") { sharedList.errorMessage = nil }
+        } message: {
+            Text(sharedList.errorMessage ?? "")
+        }
         .fullScreenCover(isPresented: .constant(!hasCompletedSetup)) {
             OnboardingView()
         }

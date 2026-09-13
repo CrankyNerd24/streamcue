@@ -6,8 +6,11 @@ struct ShowDetailView: View {
 
     @State private var isRefreshing = false
     @State private var isWorkingOnReminder = false
+    @State private var isAddingToHousehold = false
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
+
+    @Environment(SharedListStore.self) private var sharedList
 
     var body: some View {
         List {
@@ -136,6 +139,24 @@ struct ShowDetailView: View {
                 }
             }
 
+            Section {
+                Button {
+                    Task { await addToHousehold() }
+                } label: {
+                    HStack {
+                        Label(
+                            isOnHouseholdList ? "On household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "checkmark" : "person.2"
+                        )
+                        Spacer()
+                        if isAddingToHousehold { ProgressView() }
+                    }
+                }
+                .disabled(isOnHouseholdList || isAddingToHousehold)
+            } footer: {
+                Text("Adds an independent copy to the shared household list — removing it later from either list won't affect the other.")
+            }
+
             if let errorMessage {
                 Section {
                     Text(errorMessage).foregroundStyle(.red)
@@ -222,6 +243,21 @@ struct ShowDetailView: View {
             errorMessage = error.localizedDescription
         }
         isRefreshing = false
+    }
+
+    private var isOnHouseholdList: Bool {
+        sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
+    }
+
+    private func addToHousehold() async {
+        isAddingToHousehold = true
+        defer { isAddingToHousehold = false }
+        await sharedList.add(
+            tmdbID: show.tmdbID,
+            kind: .tv,
+            title: show.name,
+            posterPath: show.posterPath
+        )
     }
 }
 
