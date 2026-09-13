@@ -3,6 +3,10 @@ import SwiftData
 
 @main
 struct StreamCueApp: App {
+    // Only needed to catch CKShare-invite acceptance (see AppDelegate.swift)
+    // — SwiftUI's App/Scene lifecycle has no hook for it.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     private let container: ModelContainer
 
     init() {

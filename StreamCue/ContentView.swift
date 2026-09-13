@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CloudKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var context
@@ -867,12 +868,27 @@ struct AboutView: View {
     @State private var original = AppSettings.region
     @State private var isShowingIgnored = false
 
+    // Temporary, for verifying the household-share CloudKit plumbing before
+    // any shared-list UI exists. Remove once that UI lands.
+    @State private var householdShare: CKShare?
+    @State private var isShowingHouseholdShare = false
+    @State private var householdShareError: String?
+
     private func label(for hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
         components.minute = 0
         let date = Calendar.current.date(from: components) ?? .now
         return date.formatted(.dateTime.hour().minute())
+    }
+
+    private func presentHouseholdShare() async {
+        do {
+            householdShare = try await HouseholdShareManager.fetchOrCreateShare()
+            isShowingHouseholdShare = true
+        } catch {
+            householdShareError = error.localizedDescription
+        }
     }
 
     var body: some View {
@@ -954,10 +970,34 @@ struct AboutView: View {
                 }
 
                 Section {
+                    Button("Create / show household share (test)") {
+                        Task { await presentHouseholdShare() }
+                    }
+                } footer: {
+                    Text("Temporary — verifies the CloudKit sharing plumbing works before the shared-list screen exists.")
+                }
+
+                Section {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
                 }
+            }
+            .sheet(isPresented: $isShowingHouseholdShare) {
+                if let householdShare {
+                    CloudSharingView(share: householdShare, container: .default())
+                }
+            }
+            .alert(
+                "Couldn't share",
+                isPresented: Binding(
+                    get: { householdShareError != nil },
+                    set: { if !$0 { householdShareError = nil } }
+                )
+            ) {
+                Button("OK") { householdShareError = nil }
+            } message: {
+                Text(householdShareError ?? "")
             }
             .onChange(of: notificationsEnabled) { _, enabled in
                 Task {
