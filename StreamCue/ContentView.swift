@@ -851,6 +851,7 @@ struct AboutView: View {
     @State private var householdShare: CKShare?
     @State private var isShowingHouseholdShare = false
     @State private var householdShareError: String?
+    @State private var isLoadingHouseholdShare = false
 
     private func label(for hour: Int) -> String {
         var components = DateComponents()
@@ -861,6 +862,8 @@ struct AboutView: View {
     }
 
     private func presentHouseholdShare() async {
+        isLoadingHouseholdShare = true
+        defer { isLoadingHouseholdShare = false }
         do {
             householdShare = try await HouseholdShareManager.fetchOrCreateShare()
             isShowingHouseholdShare = true
@@ -948,11 +951,20 @@ struct AboutView: View {
                 }
 
                 Section {
-                    Button("Create / show household share (test)") {
+                    Button {
                         Task { await presentHouseholdShare() }
+                    } label: {
+                        HStack {
+                            Text("Create / show household share (test)")
+                            if isLoadingHouseholdShare {
+                                Spacer()
+                                ProgressView()
+                            }
+                        }
                     }
+                    .disabled(isLoadingHouseholdShare)
                 } footer: {
-                    Text("Temporary — verifies the CloudKit sharing plumbing works before the shared-list screen exists.")
+                    Text("Temporary — verifies the CloudKit sharing plumbing works before the shared-list screen exists. CloudKit's own round trip can take a while, especially soon after setup changes.")
                 }
 
                 Section {
