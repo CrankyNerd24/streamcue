@@ -14,6 +14,10 @@ struct WatchlistView: View {
     @State private var suggestions: [MovieSearchResult] = []
     @State private var isLoadingSuggestions = false
     @State private var preview: TitlePreview?
+    @State private var isConfirmingAddAllToHousehold = false
+    @State private var isAddingAllToHousehold = false
+
+    @Environment(SharedListStore.self) private var sharedList
 
     /// Searching filters your own list — use + to add something new.
     private var matching: [TrackedMovie] {
@@ -70,6 +74,13 @@ struct WatchlistView: View {
                                 Label("Delete all watched", systemImage: "trash")
                             }
                         }
+
+                        Button {
+                            isConfirmingAddAllToHousehold = true
+                        } label: {
+                            Label("Add all to household list", systemImage: "person.2")
+                        }
+                        .disabled(addableToHousehold.isEmpty || isAddingAllToHousehold)
                     } label: {
                         Label("Menu", systemImage: "ellipsis.circle")
                     }
@@ -89,6 +100,18 @@ struct WatchlistView: View {
                     for movie in watched { context.delete(movie) }
                 }
                 Button("Cancel", role: .cancel) {}
+            }
+            .confirmationDialog(
+                "Add \(addableToHousehold.count) film\(addableToHousehold.count == 1 ? "" : "s") to the household list?",
+                isPresented: $isConfirmingAddAllToHousehold,
+                titleVisibility: .visible
+            ) {
+                Button("Add to household list") {
+                    Task { await addAllToHousehold() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Each becomes an independent copy — removing it later from either list won't affect the other.")
             }
             .task { await refreshStale() }
             .task(id: movies.count) { await loadSuggestions() }
@@ -360,6 +383,20 @@ struct WatchlistView: View {
             try? await movie.refresh(includeRatings: false)
         }
         isRefreshing = false
+    }
+
+    /// Films not already on the household list.
+    private var addableToHousehold: [TrackedMovie] {
+        let shared = Set(sharedList.items(for: .movies).map(\.tmdbID))
+        return movies.filter { !shared.contains($0.tmdbID) }
+    }
+
+    private func addAllToHousehold() async {
+        isAddingAllToHousehold = true
+        defer { isAddingAllToHousehold = false }
+        for movie in addableToHousehold {
+            await sharedList.add(tmdbID: movie.tmdbID, kind: .movies, title: movie.title, posterPath: movie.posterPath)
+        }
     }
 }
 

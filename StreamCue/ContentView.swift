@@ -19,6 +19,10 @@ struct ContentView: View {
     @State private var isConfirmingReminders = false
     @State private var isWorkingOnReminders = false
     @State private var reminderResult: String?
+    @State private var isConfirmingAddAllToHousehold = false
+    @State private var isAddingAllToHousehold = false
+
+    @Environment(SharedListStore.self) private var sharedList
 
     @AppStorage("serviceFilter") private var serviceFilterRaw = ""
     @AppStorage("freeOnly") private var freeOnly = false
@@ -112,6 +116,18 @@ struct ContentView: View {
             } message: {
                 Text("One per show with a confirmed air date, due at \(Notifications.hour):00 on the day it airs.")
             }
+            .confirmationDialog(
+                "Add \(addableToHousehold.count) show\(addableToHousehold.count == 1 ? "" : "s") to the household list?",
+                isPresented: $isConfirmingAddAllToHousehold,
+                titleVisibility: .visible
+            ) {
+                Button("Add to household list") {
+                    Task { await addAllToHousehold() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Each becomes an independent copy — removing it later from either list won't affect the other.")
+            }
             .alert(
                 "Reminders",
                 isPresented: Binding(
@@ -194,6 +210,13 @@ struct ContentView: View {
                     }
                     .disabled(isWorkingOnReminders)
                 }
+
+                Button {
+                    isConfirmingAddAllToHousehold = true
+                } label: {
+                    Label("Add all to household list", systemImage: "person.2")
+                }
+                .disabled(addableToHousehold.isEmpty || isAddingAllToHousehold)
 
                 Divider()
 
@@ -488,6 +511,20 @@ struct ContentView: View {
     private func clearFilter() {
         serviceFilterRaw = ""
         freeOnly = false
+    }
+
+    /// Shows not already on the household list.
+    private var addableToHousehold: [TrackedShow] {
+        let shared = Set(sharedList.items(for: .tv).map(\.tmdbID))
+        return shows.filter { !shared.contains($0.tmdbID) }
+    }
+
+    private func addAllToHousehold() async {
+        isAddingAllToHousehold = true
+        defer { isAddingAllToHousehold = false }
+        for show in addableToHousehold {
+            await sharedList.add(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath)
+        }
     }
 
     private func remove(_ group: [TrackedShow], at offsets: IndexSet) {
