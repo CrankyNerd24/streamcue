@@ -26,8 +26,8 @@ enum HouseholdShareError: LocalizedError {
 /// `CKContainer.default().sharedCloudDatabase`.
 enum HouseholdShareManager {
     static let zoneName = "HouseholdZone"
+    static let rootRecordName = "HouseholdRoot"
     private static let rootRecordType = "HouseholdRoot"
-    private static let rootRecordName = "HouseholdRoot"
 
     private static var container: CKContainer { .default() }
     private static var privateDatabase: CKDatabase { container.privateCloudDatabase }

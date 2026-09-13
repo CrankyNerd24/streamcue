@@ -853,6 +853,12 @@ struct AboutView: View {
     @State private var householdShareError: String?
     @State private var isLoadingHouseholdShare = false
 
+    // Temporary, for verifying the shared-list CloudKit records before the
+    // real shared-list screen exists. Remove once that UI lands.
+    @State private var sharedItems: [SharedItem] = []
+    @State private var isLoadingSharedList = false
+    @State private var sharedListError: String?
+
     private func label(for hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
@@ -869,6 +875,52 @@ struct AboutView: View {
             isShowingHouseholdShare = true
         } catch {
             householdShareError = error.localizedDescription
+        }
+    }
+
+    private func loadSharedItems() async {
+        isLoadingSharedList = true
+        defer { isLoadingSharedList = false }
+        do {
+            sharedItems = try await SharedListManager.fetchAll()
+        } catch {
+            sharedListError = error.localizedDescription
+        }
+    }
+
+    private func addTestSharedItem() async {
+        isLoadingSharedList = true
+        defer { isLoadingSharedList = false }
+        do {
+            _ = try await SharedListManager.add(
+                tmdbID: Int.random(in: 1...999_999),
+                kind: .tv,
+                title: "Test item \(Date.now.formatted(.dateTime.hour().minute().second()))",
+                posterPath: nil
+            )
+            sharedItems = try await SharedListManager.fetchAll()
+        } catch {
+            sharedListError = error.localizedDescription
+        }
+    }
+
+    private func toggleWatched(_ item: SharedItem) async {
+        do {
+            try await SharedListManager.setWatched(item, watched: !item.watched)
+            sharedItems = try await SharedListManager.fetchAll()
+        } catch {
+            sharedListError = error.localizedDescription
+        }
+    }
+
+    private func deleteSharedItems(at offsets: IndexSet) {
+        Task {
+            do {
+                for index in offsets { try await SharedListManager.remove(sharedItems[index]) }
+                sharedItems = try await SharedListManager.fetchAll()
+            } catch {
+                sharedListError = error.localizedDescription
+            }
         }
     }
 
@@ -968,6 +1020,42 @@ struct AboutView: View {
                 }
 
                 Section {
+                    Button {
+                        Task { await addTestSharedItem() }
+                    } label: {
+                        HStack {
+                            Text("Add test item to shared list")
+                            if isLoadingSharedList {
+                                Spacer()
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(isLoadingSharedList)
+
+                    ForEach(sharedItems) { item in
+                        Button {
+                            Task { await toggleWatched(item) }
+                        } label: {
+                            HStack {
+                                Text(item.title)
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                if item.watched {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Theme.free)
+                                }
+                            }
+                        }
+                    }
+                    .onDelete(perform: deleteSharedItems)
+                } header: {
+                    Text("Shared list (test)")
+                } footer: {
+                    Text("Temporary — verifies shared-list CloudKit records read/write/toggle/delete correctly before the real screen exists. Tap an item to toggle watched.")
+                }
+
+                Section {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
@@ -989,6 +1077,18 @@ struct AboutView: View {
             } message: {
                 Text(householdShareError ?? "")
             }
+            .alert(
+                "Shared list error",
+                isPresented: Binding(
+                    get: { sharedListError != nil },
+                    set: { if !$0 { sharedListError = nil } }
+                )
+            ) {
+                Button("OK") { sharedListError = nil }
+            } message: {
+                Text(sharedListError ?? "")
+            }
+            .task { await loadSharedItems() }
             .onChange(of: notificationsEnabled) { _, enabled in
                 Task {
                     if enabled, await Notifications.requestPermission() == false {
