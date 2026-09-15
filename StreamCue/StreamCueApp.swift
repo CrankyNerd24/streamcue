@@ -47,7 +47,9 @@ struct StreamCueApp: App {
 
 struct RootView: View {
     @AppStorage(OnboardingView.completedKey) private var hasCompletedSetup = false
-    @State private var sharedList = SharedListStore()
+    // The same instance `AppDelegate` reaches to refresh/report errors after
+    // a share is accepted — see `SharedListStore.shared`.
+    @State private var sharedList = SharedListStore.shared
 
     /// Drives the tab badge — same filter the Ready to watch section uses.
     @Query(filter: #Predicate<PendingEpisode> { !$0.watched && !$0.dismissed })

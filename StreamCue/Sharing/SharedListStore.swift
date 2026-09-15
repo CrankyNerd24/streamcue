@@ -7,6 +7,11 @@ import Observation
 /// once at the root via `.environment`.
 @Observable
 final class SharedListStore {
+    /// `AppDelegate`/`SceneDelegate` sit outside SwiftUI's view hierarchy and
+    /// can't reach an `@Environment`-injected instance, so share-acceptance
+    /// (the only caller outside the view tree) goes through this instead.
+    static let shared = SharedListStore()
+
     private(set) var items: [SharedItem] = []
     private(set) var isLoading = false
     var errorMessage: String?
