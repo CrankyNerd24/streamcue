@@ -26,8 +26,9 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
         Task {
             do {
                 try await HouseholdShareManager.acceptShare(metadata: cloudKitShareMetadata)
+                await SharedListStore.shared.refresh()
             } catch {
-                print("Failed to accept household share: \(error)")
+                SharedListStore.shared.errorMessage = "Couldn't join the household list: \(error.localizedDescription)"
             }
         }
     }
