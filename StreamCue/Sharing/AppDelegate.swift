@@ -1,5 +1,6 @@
 import UIKit
 import CloudKit
+import SwiftData
 
 /// Exists for one reason: SwiftUI's `App` protocol has no hook for CKShare
 /// acceptance. Tapping a household-share invite link hands control to the
