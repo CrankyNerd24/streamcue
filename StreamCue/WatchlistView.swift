@@ -97,7 +97,10 @@ struct WatchlistView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    for movie in watched { context.delete(movie) }
+                    for movie in watched {
+                        let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                        Library.removeMovie(movie, wasShared: wasShared, context: context)
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             }
@@ -137,8 +140,6 @@ struct WatchlistView: View {
             watchedSection
 
             suggestionsSection
-
-            HouseholdSection(kind: .movies, personalTmdbIDs: Set(movies.map(\.tmdbID)))
 
             Color.clear.frame(height: 12).plainRow()
         }
@@ -185,7 +186,8 @@ struct WatchlistView: View {
                     .plainRow()
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            context.delete(movie)
+                            let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                            Library.removeMovie(movie, wasShared: wasShared, context: context)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -226,7 +228,11 @@ struct WatchlistView: View {
                 .plainRow()
             }
             .onDelete { offsets in
-                for index in offsets { context.delete(group[index]) }
+                for index in offsets {
+                    let movie = group[index]
+                    let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                    Library.removeMovie(movie, wasShared: wasShared, context: context)
+                }
             }
         }
     }

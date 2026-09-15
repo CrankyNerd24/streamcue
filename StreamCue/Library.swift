@@ -42,6 +42,26 @@ enum Library {
         return movie
     }
 
+    // MARK: - Removing
+
+    /// Deleting a show that's also on the household list needs to mark it
+    /// ignored too — otherwise the next household sync sees it's missing
+    /// from the personal list and just re-adds it right back.
+    static func removeShow(_ show: TrackedShow, wasShared: Bool, context: ModelContext) {
+        if wasShared {
+            ignore(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath, context: context)
+        }
+        EpisodeSync.removeAll(forShowID: show.tmdbID, context: context)
+        context.delete(show)
+    }
+
+    static func removeMovie(_ movie: TrackedMovie, wasShared: Bool, context: ModelContext) {
+        if wasShared {
+            ignore(tmdbID: movie.tmdbID, kind: .movies, title: movie.title, posterPath: movie.posterPath, context: context)
+        }
+        context.delete(movie)
+    }
+
     // MARK: - Lookups
 
     static func show(tmdbID: Int, context: ModelContext) -> TrackedShow? {

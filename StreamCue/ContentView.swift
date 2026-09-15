@@ -287,8 +287,6 @@ struct ContentView: View {
             section("No date announced", waiting)
             section("Finished", finished)
 
-            HouseholdSection(kind: .tv, personalTmdbIDs: Set(shows.map(\.tmdbID)))
-
             Color.clear.frame(height: 12).plainRow()
         }
         .themedList()
@@ -529,8 +527,9 @@ struct ContentView: View {
 
     private func remove(_ group: [TrackedShow], at offsets: IndexSet) {
         for index in offsets {
-            EpisodeSync.removeAll(forShowID: group[index].tmdbID, context: context)
-            context.delete(group[index])
+            let show = group[index]
+            let wasShared = sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
+            Library.removeShow(show, wasShared: wasShared, context: context)
         }
     }
 

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// One shared source of the household list for the whole app, so the Shows
 /// and Movies tabs (each showing their own kind's slice of it) stay in sync
@@ -28,13 +29,35 @@ final class SharedListStore {
         items.first { $0.tmdbID == tmdbID && $0.kind == kind }
     }
 
-    func refresh() async {
+    /// Fetches the household list and mirrors any new title into this
+    /// device's own personal list — a shared show is meant to behave exactly
+    /// like one you added yourself (air dates, notifications, everything),
+    /// not sit in a separate, feature-limited list of its own.
+    @MainActor
+    func refresh(context: ModelContext) async {
         isLoading = true
         defer { isLoading = false }
         do {
             items = try await SharedListManager.fetchAll()
+            syncToPersonalList(context: context)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Skips anything already personally tracked, and anything the user
+    /// deliberately removed after it arrived — `Library.removeShow`/
+    /// `removeMovie` mark a shared title ignored on removal specifically so
+    /// this doesn't resurrect it on the next refresh.
+    @MainActor
+    private func syncToPersonalList(context: ModelContext) {
+        for item in items where !Library.isIgnored(tmdbID: item.tmdbID, kind: item.kind, context: context) {
+            switch item.kind {
+            case .tv:
+                Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+            case .movies:
+                Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
+            }
         }
     }
 
