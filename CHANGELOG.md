@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix CloudKit container identifier and enable remote-notification background mode
+
 - Add CLAUDE.md
 
 - Add app icon badge for pending episodes
