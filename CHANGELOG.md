@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump version to 2.2.1 (2)
+
 - Fix CloudKit container identifier and enable remote-notification background mode
 
 - Add CLAUDE.md
