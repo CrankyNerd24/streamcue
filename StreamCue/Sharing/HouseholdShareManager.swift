@@ -95,6 +95,14 @@ enum HouseholdShareManager {
     /// server (with its real change tag) or be freshly constructed locally —
     /// either way `modifyRecords` does the right thing (update vs. insert).
     private static func createShare(for rootRecord: CKRecord) async throws -> CKShare {
+        // A record with no custom fields is legal in Development (CloudKit
+        // infers schema from whatever gets saved) but CloudKit refuses to
+        // promote an empty record type to Production — this keeps
+        // `HouseholdRoot` non-empty so that promotion never blocks again.
+        if rootRecord["createdat"] == nil {
+            rootRecord["createdat"] = Date().ISO8601Format() as CKRecordValue
+        }
+
         let share = CKShare(rootRecord: rootRecord)
         share[CKShare.SystemFieldKey.title] = "StreamCue household list" as CKRecordValue
         share.publicPermission = .none
