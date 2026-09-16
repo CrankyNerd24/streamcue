@@ -97,12 +97,15 @@ struct ShowDetailView: View {
                 }
             }
 
-            if let watchLink = show.watchLink, let url = URL(string: watchLink) {
+            if let destination = StreamingServices.destination(
+                providers: show.freeOn + show.subscriptionOn + show.rentOrBuyOn,
+                watchLink: show.watchLink
+            ) {
                 Section {
                     Button {
-                        openURL(url)
+                        openURL(destination.url)
                     } label: {
-                        Label("Watch now", systemImage: "play.rectangle.fill")
+                        Label(destination.label, systemImage: "play.rectangle.fill")
                     }
                 }
             }

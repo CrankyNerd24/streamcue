@@ -10,5 +10,17 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>nflx</string>
+		<string>aiv</string>
+		<string>disneyplus</string>
+		<string>hulu</string>
+		<string>hbomax</string>
+		<string>paramountplus</string>
+		<string>videos</string>
+		<string>peacocktv</string>
+		<string>youtube</string>
+	</array>
 </dict>
 </plist>

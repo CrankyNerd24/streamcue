@@ -560,12 +560,15 @@ struct MovieDetailView: View {
                 }
             }
 
-            if let watchLink = movie.watchLink, let url = URL(string: watchLink) {
+            if let destination = StreamingServices.destination(
+                providers: movie.freeOn + movie.subscriptionOn + movie.rentOrBuyOn,
+                watchLink: movie.watchLink
+            ) {
                 Section {
                     Button {
-                        openURL(url)
+                        openURL(destination.url)
                     } label: {
-                        Label("Watch now", systemImage: "play.rectangle.fill")
+                        Label(destination.label, systemImage: "play.rectangle.fill")
                     }
                 }
             }
