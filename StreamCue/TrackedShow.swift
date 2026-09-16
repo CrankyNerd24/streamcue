@@ -16,6 +16,9 @@ final class TrackedShow {
     var subscriptionOn: [String] = []
     var freeOn: [String] = []
     var rentOrBuyOn: [String] = []
+    /// JustWatch page for this title in the current region — where "where to
+    /// watch" actually sends you when you tap it.
+    var watchLink: String?
     var addedAt: Date = Date.now
     var lastRefreshed: Date?
     var reminderID: String?
@@ -125,6 +128,7 @@ extension TrackedShow {
         subscriptionOn = availability.subscription
         freeOn = availability.free
         rentOrBuyOn = availability.rentOrBuy
+        watchLink = availability.link
         lastRefreshed = .now
 
         // Ratings are a bonus — never let a failure here break the refresh.

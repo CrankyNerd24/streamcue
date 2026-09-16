@@ -8,6 +8,7 @@ struct ShowDetailView: View {
     @State private var isWorkingOnReminder = false
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         List {
@@ -115,6 +116,16 @@ struct ShowDetailView: View {
                 Section("Where to watch") {
                     Text("Nothing listed in \(AppSettings.region).")
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if let watchLink = show.watchLink, let url = URL(string: watchLink) {
+                Section {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Watch now", systemImage: "play.rectangle.fill")
+                    }
                 }
             }
 

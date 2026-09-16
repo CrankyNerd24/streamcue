@@ -510,6 +510,7 @@ struct MovieDetailView: View {
     @State private var isRefreshing = false
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         List {
@@ -572,6 +573,16 @@ struct MovieDetailView: View {
                 Section("Where to watch") {
                     Text("Nothing listed in \(AppSettings.region) yet.")
                         .foregroundStyle(Theme.secondary)
+                }
+            }
+
+            if let watchLink = movie.watchLink, let url = URL(string: watchLink) {
+                Section {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Watch now", systemImage: "play.rectangle.fill")
+                    }
                 }
             }
 
