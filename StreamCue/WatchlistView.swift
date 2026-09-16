@@ -560,6 +560,16 @@ struct MovieDetailView: View {
                 }
             }
 
+            if let watchLink = movie.watchLink, let url = URL(string: watchLink) {
+                Section {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Watch now", systemImage: "play.rectangle.fill")
+                    }
+                }
+            }
+
             if !movie.freeOn.isEmpty {
                 Section("Free") { ForEach(movie.freeOn, id: \.self, content: Text.init) }
             }
@@ -573,16 +583,6 @@ struct MovieDetailView: View {
                 Section("Where to watch") {
                     Text("Nothing listed in \(AppSettings.region) yet.")
                         .foregroundStyle(Theme.secondary)
-                }
-            }
-
-            if let watchLink = movie.watchLink, let url = URL(string: watchLink) {
-                Section {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        Label("Watch now", systemImage: "play.rectangle.fill")
-                    }
                 }
             }
 

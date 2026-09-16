@@ -97,6 +97,16 @@ struct ShowDetailView: View {
                 }
             }
 
+            if let watchLink = show.watchLink, let url = URL(string: watchLink) {
+                Section {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Watch now", systemImage: "play.rectangle.fill")
+                    }
+                }
+            }
+
             if !show.freeOn.isEmpty {
                 Section("Free") {
                     ForEach(show.freeOn, id: \.self, content: Text.init)
@@ -116,16 +126,6 @@ struct ShowDetailView: View {
                 Section("Where to watch") {
                     Text("Nothing listed in \(AppSettings.region).")
                         .foregroundStyle(.secondary)
-                }
-            }
-
-            if let watchLink = show.watchLink, let url = URL(string: watchLink) {
-                Section {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        Label("Watch now", systemImage: "play.rectangle.fill")
-                    }
                 }
             }
 
