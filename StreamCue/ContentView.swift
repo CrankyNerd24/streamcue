@@ -907,6 +907,7 @@ struct AboutView: View {
     @State private var isShowingHouseholdShare = false
     @State private var householdShareError: String?
     @State private var isLoadingHouseholdShare = false
+    @State private var isHouseholdParticipant = false
 
     private func label(for hour: Int) -> String {
         var components = DateComponents()
@@ -1005,21 +1006,30 @@ struct AboutView: View {
                     Text("Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access.")
                 }
 
-                Section {
-                    Button {
-                        Task { await presentHouseholdShare() }
-                    } label: {
-                        HStack {
-                            Text("Invite to household list")
-                            if isLoadingHouseholdShare {
-                                Spacer()
-                                ProgressView()
+                if isHouseholdParticipant {
+                    Section {
+                        Text("You're on a household list someone else shared with you.")
+                            .foregroundStyle(Theme.secondary)
+                    } footer: {
+                        Text("Only the person who created a household list can invite others to it.")
+                    }
+                } else {
+                    Section {
+                        Button {
+                            Task { await presentHouseholdShare() }
+                        } label: {
+                            HStack {
+                                Text("Invite to household list")
+                                if isLoadingHouseholdShare {
+                                    Spacer()
+                                    ProgressView()
+                                }
                             }
                         }
+                        .disabled(isLoadingHouseholdShare)
+                    } footer: {
+                        Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                     }
-                    .disabled(isLoadingHouseholdShare)
-                } footer: {
-                    Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                 }
 
                 Section {
@@ -1062,6 +1072,9 @@ struct AboutView: View {
             .onChange(of: autoReminders) { _, enabled in
                 guard enabled else { return }
                 Task { await ReminderSync.sync(shows) }
+            }
+            .task {
+                isHouseholdParticipant = await SharedListManager.isParticipantInSharedHousehold()
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

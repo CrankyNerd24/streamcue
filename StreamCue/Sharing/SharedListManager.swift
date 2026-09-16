@@ -30,22 +30,38 @@ enum SharedListManager {
 
     private static var container: CKContainer { .default() }
 
+    /// Checks the shared database — "am I a participant in someone else's
+    /// household?" — before ever looking at a zone this device owns itself.
+    /// Zone names aren't unique across accounts: if this device ever tapped
+    /// "Invite to household list" itself, even by mistake, it owns its own
+    /// zone of the same name, and checking owned-first would resolve to
+    /// that instead, permanently shadowing the household it actually
+    /// joined. Joining always wins over owning.
     private static func resolveContext() async throws -> Context {
+        if let zone = try await sharedHouseholdZone() {
+            return Context(database: container.sharedCloudDatabase, zoneID: zone.zoneID)
+        }
+
         let ownedZoneID = CKRecordZone.ID(
             zoneName: HouseholdShareManager.zoneName,
             ownerName: CKCurrentUserDefaultName
         )
-        let privateDatabase = container.privateCloudDatabase
-        if (try? await privateDatabase.recordZone(for: ownedZoneID)) != nil {
-            return Context(database: privateDatabase, zoneID: ownedZoneID)
-        }
-
-        let sharedDatabase = container.sharedCloudDatabase
-        let zones = try await sharedDatabase.allRecordZones()
-        guard let zone = zones.first(where: { $0.zoneID.zoneName == HouseholdShareManager.zoneName }) else {
+        guard (try? await container.privateCloudDatabase.recordZone(for: ownedZoneID)) != nil else {
             throw SharedListError.notSetUp
         }
-        return Context(database: sharedDatabase, zoneID: zone.zoneID)
+        return Context(database: container.privateCloudDatabase, zoneID: ownedZoneID)
+    }
+
+    private static func sharedHouseholdZone() async throws -> CKRecordZone? {
+        let zones = try await container.sharedCloudDatabase.allRecordZones()
+        return zones.first { $0.zoneID.zoneName == HouseholdShareManager.zoneName }
+    }
+
+    /// True if this device is a participant in a household someone else
+    /// owns — used to hide "Invite to household list" for joiners, so they
+    /// can't accidentally create a second, competing household of their own.
+    static func isParticipantInSharedHousehold() async -> Bool {
+        (try? await sharedHouseholdZone()) != nil
     }
 
     private static func rootRecordID(in zoneID: CKRecordZone.ID) -> CKRecord.ID {
