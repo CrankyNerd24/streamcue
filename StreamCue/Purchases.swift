@@ -19,19 +19,15 @@ final class PurchaseManager {
     private(set) var isWorking = false
     var errorMessage: String?
 
-    private var updatesTask: Task<Void, Never>?
-
+    // `shared` lives for the app's whole lifetime, so this task is never
+    // cancelled — there's no deinit to do it from.
     private init() {
-        updatesTask = Task { [weak self] in
+        Task { [weak self] in
             for await update in Transaction.updates {
                 await self?.handle(update)
             }
         }
         Task { [weak self] in await self?.refreshEntitlements() }
-    }
-
-    deinit {
-        updatesTask?.cancel()
     }
 
     func loadProduct() async {
