@@ -62,8 +62,10 @@ final class RemindersService {
 enum ReminderSync {
     static let autoKey = "autoReminders"
 
+    /// Also requires premium so a lapsed refund doesn't leave the toggle's
+    /// stored `true` still writing reminders in the background.
     static var isAutomatic: Bool {
-        UserDefaults.standard.bool(forKey: autoKey)
+        UserDefaults.standard.bool(forKey: autoKey) && PurchaseManager.shared.isPremium
     }
 
     /// The show's air date at the notification hour, or nil if it's passed.

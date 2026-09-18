@@ -59,6 +59,7 @@ struct RootView: View {
     // The same instance `AppDelegate` reaches to refresh/report errors after
     // a share is accepted — see `SharedListStore.shared`.
     @State private var sharedList = SharedListStore.shared
+    @State private var purchases = PurchaseManager.shared
     @Environment(\.modelContext) private var context
 
     /// Drives the tab badge — same filter the Ready to watch section uses.
@@ -83,6 +84,7 @@ struct RootView: View {
         .tint(Theme.primary)
         .preferredColorScheme(.dark)
         .environment(sharedList)
+        .environment(purchases)
         .task { await sharedList.refresh(context: context) }
         .alert(
             "Household list error",

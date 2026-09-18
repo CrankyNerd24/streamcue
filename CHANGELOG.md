@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Gate household sharing and automatic Reminders sync behind a StoreKit
+  premium unlock
+
 - Add shared Xcode scheme
 
 - Bump marketing version to 2.3.0

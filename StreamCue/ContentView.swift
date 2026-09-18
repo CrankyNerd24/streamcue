@@ -889,6 +889,7 @@ struct AboutView: View {
     var onRegionChanged: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(PurchaseManager.self) private var purchases
     @AppStorage(AppSettings.regionKey) private var region = "US"
     @AppStorage(Notifications.enabledKey) private var notificationsEnabled = false
     @AppStorage(Notifications.hourKey) private var notificationHour = 18
@@ -900,6 +901,7 @@ struct AboutView: View {
     @Environment(\.modelContext) private var context
     @State private var original = AppSettings.region
     @State private var isShowingIgnored = false
+    @State private var isShowingPaywall = false
 
     // Temporary, for verifying the household-share CloudKit plumbing before
     // any shared-list UI exists. Remove once that UI lands.
@@ -918,6 +920,10 @@ struct AboutView: View {
     }
 
     private func presentHouseholdShare() async {
+        guard purchases.isPremium else {
+            isShowingPaywall = true
+            return
+        }
         isLoadingHouseholdShare = true
         defer { isLoadingHouseholdShare = false }
         do {
@@ -1000,10 +1006,26 @@ struct AboutView: View {
                 }
 
                 Section {
-                    Toggle("Add to Reminders automatically", isOn: $autoReminders)
-                        .tint(Theme.free)
+                    if purchases.isPremium {
+                        Toggle("Add to Reminders automatically", isOn: $autoReminders)
+                            .tint(Theme.free)
+                    } else {
+                        Button {
+                            isShowingPaywall = true
+                        } label: {
+                            HStack {
+                                Text("Add to Reminders automatically")
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                        }
+                    }
                 } footer: {
-                    Text("Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access.")
+                    Text(purchases.isPremium
+                         ? "Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access."
+                         : "Writes a reminder for every show with a confirmed date, and moves it if the date changes. Part of StreamCue Premium.")
                 }
 
                 if isHouseholdParticipant {
@@ -1013,7 +1035,7 @@ struct AboutView: View {
                     } footer: {
                         Text("Only the person who created a household list can invite others to it.")
                     }
-                } else {
+                } else if purchases.isPremium {
                     Section {
                         Button {
                             Task { await presentHouseholdShare() }
@@ -1030,6 +1052,22 @@ struct AboutView: View {
                     } footer: {
                         Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                     }
+                } else {
+                    Section {
+                        Button {
+                            isShowingPaywall = true
+                        } label: {
+                            HStack {
+                                Text("Invite to household list")
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                        }
+                    } footer: {
+                        Text("Share your list with the rest of your household. Part of StreamCue Premium.")
+                    }
                 }
 
                 Section {
@@ -1042,6 +1080,9 @@ struct AboutView: View {
                 if let householdShare {
                     CloudSharingView(share: householdShare, container: .default())
                 }
+            }
+            .sheet(isPresented: $isShowingPaywall) {
+                PaywallView()
             }
             .alert(
                 "Couldn't share",
