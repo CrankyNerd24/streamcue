@@ -1,0 +1,35 @@
+{
+  "identifier" : "6F3D9A2B-8C41-4E7A-9B5C-1D2E3F4A5B6C",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6F3D9A2B-8C41-4E7A-9B5C-1D2E3F4A5B6D",
+      "localizations" : [
+        {
+          "description" : "Household sharing and automatic Reminders sync.",
+          "displayName" : "StreamCue Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.CrankyNerdNew.StreamCue.premium",
+      "referenceName" : "StreamCue Premium",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "0",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

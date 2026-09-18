@@ -15,6 +15,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Configuration.storekit,
 			);
 			target = 04BC9D01304F132E00EAF3A7 /* StreamCue */;
 		};
