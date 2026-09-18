@@ -3,6 +3,9 @@
 iOS app for tracking TV shows and films: what's airing, where it streams, and
 whether it's free. SwiftUI + SwiftData, no backend.
 
+The app is submitted to the App Store and awaiting review. Any code change
+means a new build and a new place in the review queue.
+
 ## Build
 
 - Xcode 26, **deployment target iOS 18** (`onScrollGeometryChange` needs it)
@@ -62,4 +65,9 @@ has the Add and Not interested buttons.
 
 ## Known gaps
 
-- OMDb attribution is required by its CC BY-NC licence and isn't displayed.
+- OMDb attribution is still missing. Its free tier is CC BY-NC and requires
+  credit. The Settings screen credits TMDB but not OMDb. Add it to the
+  attribution text in the next build.
+- App Store Content Rights is declared as containing third-party content
+  (TMDB metadata and images, OMDb ratings). Keep that in mind if the data
+  sources change.
