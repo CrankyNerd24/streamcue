@@ -10,9 +10,11 @@ import Observation
 final class PurchaseManager {
     static let shared = PurchaseManager()
 
-    /// Placeholder — no App Store Connect product exists yet. Replace with
-    /// the real product ID before this ships.
     static let premiumProductID = "com.CrankyNerdNew.StreamCue.premium"
+
+    /// Local record of grandfathering, so a confirmed grandfathered user
+    /// never needs another CloudKit round trip to prove it again.
+    private static let grandfatheredKey = "grandfatheredPremium"
 
     private(set) var isPremium = false
     private(set) var product: Product?
@@ -22,12 +24,30 @@ final class PurchaseManager {
     // `shared` lives for the app's whole lifetime, so this task is never
     // cancelled — there's no deinit to do it from.
     private init() {
+        if UserDefaults.standard.bool(forKey: Self.grandfatheredKey) {
+            isPremium = true
+        }
         Task { [weak self] in
             for await update in Transaction.updates {
                 await self?.handle(update)
             }
         }
         Task { [weak self] in await self?.refreshEntitlements() }
+        Task { [weak self] in await self?.checkGrandfathering() }
+    }
+
+    /// Anyone who already had household sharing or automatic Reminders sync
+    /// before this build introduced the paywall keeps them for free. Both
+    /// are gated behind `isPremium` everywhere they can be turned on, so
+    /// either one being true here can only mean it was set before the gate
+    /// existed — never a false positive after the fact.
+    private func checkGrandfathering() async {
+        guard !isPremium else { return }
+        let hadAutoReminders = UserDefaults.standard.bool(forKey: ReminderSync.autoKey)
+        let hadHousehold = await HouseholdShareManager.ownsShare()
+        guard hadAutoReminders || hadHousehold else { return }
+        isPremium = true
+        UserDefaults.standard.set(true, forKey: Self.grandfatheredKey)
     }
 
     func loadProduct() async {

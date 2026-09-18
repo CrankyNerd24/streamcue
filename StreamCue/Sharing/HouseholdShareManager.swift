@@ -68,6 +68,14 @@ enum HouseholdShareManager {
         _ = try await container.accept(metadata)
     }
 
+    /// True if this device already created a household share — used to
+    /// grandfather premium in for someone who had the feature before it was
+    /// paywalled, rather than checking a local flag that a reinstall or a
+    /// fresh device would lose.
+    static func ownsShare() async -> Bool {
+        (try? await fetchRootRecord()) != nil
+    }
+
     // MARK: - Steps
 
     private static func ensureZoneExists() async throws {

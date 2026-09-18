@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Grandfather premium in for anyone who already had household sharing or
+  automatic Reminders sync before the paywall shipped
+
 - Gate household sharing and automatic Reminders sync behind a StoreKit
   premium unlock
 
