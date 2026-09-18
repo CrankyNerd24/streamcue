@@ -16,8 +16,10 @@ struct WatchlistView: View {
     @State private var preview: TitlePreview?
     @State private var isConfirmingAddAllToHousehold = false
     @State private var isAddingAllToHousehold = false
+    @State private var isShowingPaywall = false
 
     @Environment(SharedListStore.self) private var sharedList
+    @Environment(PurchaseManager.self) private var purchases
 
     /// Searching filters your own list — use + to add something new.
     private var matching: [TrackedMovie] {
@@ -76,7 +78,11 @@ struct WatchlistView: View {
                         }
 
                         Button {
-                            isConfirmingAddAllToHousehold = true
+                            if purchases.isPremium {
+                                isConfirmingAddAllToHousehold = true
+                            } else {
+                                isShowingPaywall = true
+                            }
                         } label: {
                             Label("Add all to household list", systemImage: "person.2")
                         }
@@ -88,6 +94,7 @@ struct WatchlistView: View {
             }
             .searchable(text: $query, prompt: "Search your films")
             .sheet(isPresented: $isAdding) { AddMovieView() }
+            .sheet(isPresented: $isShowingPaywall) { PaywallView() }
             .sheet(item: $preview) { preview in
                 TitlePreviewSheet(preview: preview) { addFromPreview(preview) }
             }
@@ -398,6 +405,10 @@ struct WatchlistView: View {
     }
 
     private func addAllToHousehold() async {
+        guard purchases.isPremium else {
+            isShowingPaywall = true
+            return
+        }
         isAddingAllToHousehold = true
         defer { isAddingAllToHousehold = false }
         for movie in addableToHousehold {
@@ -584,8 +595,10 @@ struct MovieDetailView: View {
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
     @State private var isAddingToHousehold = false
+    @State private var isShowingPaywall = false
 
     @Environment(SharedListStore.self) private var sharedList
+    @Environment(PurchaseManager.self) private var purchases
 
     var body: some View {
         List {
@@ -696,6 +709,9 @@ struct MovieDetailView: View {
                 kind: .movies
             )) ?? []
         }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView()
+        }
     }
 
     private func refresh() async {
@@ -714,11 +730,17 @@ struct MovieDetailView: View {
     }
 
     private func toggleHousehold() async {
-        isAddingToHousehold = true
-        defer { isAddingToHousehold = false }
         if let existing = sharedList.item(tmdbID: movie.tmdbID, kind: .movies) {
+            isAddingToHousehold = true
+            defer { isAddingToHousehold = false }
             await sharedList.remove(existing)
         } else {
+            guard purchases.isPremium else {
+                isShowingPaywall = true
+                return
+            }
+            isAddingToHousehold = true
+            defer { isAddingToHousehold = false }
             await sharedList.add(
                 tmdbID: movie.tmdbID,
                 kind: .movies,

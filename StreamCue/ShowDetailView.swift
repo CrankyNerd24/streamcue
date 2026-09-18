@@ -9,8 +9,10 @@ struct ShowDetailView: View {
     @State private var isAddingToHousehold = false
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
+    @State private var isShowingPaywall = false
 
     @Environment(SharedListStore.self) private var sharedList
+    @Environment(PurchaseManager.self) private var purchases
 
     var body: some View {
         List {
@@ -194,6 +196,9 @@ struct ShowDetailView: View {
                 kind: .tv
             )) ?? []
         }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView()
+        }
     }
 
     private var offsetLabel: String {
@@ -250,11 +255,17 @@ struct ShowDetailView: View {
     }
 
     private func toggleHousehold() async {
-        isAddingToHousehold = true
-        defer { isAddingToHousehold = false }
         if let existing = sharedList.item(tmdbID: show.tmdbID, kind: .tv) {
+            isAddingToHousehold = true
+            defer { isAddingToHousehold = false }
             await sharedList.remove(existing)
         } else {
+            guard purchases.isPremium else {
+                isShowingPaywall = true
+                return
+            }
+            isAddingToHousehold = true
+            defer { isAddingToHousehold = false }
             await sharedList.add(
                 tmdbID: show.tmdbID,
                 kind: .tv,

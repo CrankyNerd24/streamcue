@@ -21,8 +21,10 @@ struct ContentView: View {
     @State private var reminderResult: String?
     @State private var isConfirmingAddAllToHousehold = false
     @State private var isAddingAllToHousehold = false
+    @State private var isShowingHouseholdPaywall = false
 
     @Environment(SharedListStore.self) private var sharedList
+    @Environment(PurchaseManager.self) private var purchases
 
     @AppStorage("serviceFilter") private var serviceFilterRaw = ""
     @AppStorage("freeOnly") private var freeOnly = false
@@ -171,6 +173,9 @@ struct ContentView: View {
             .sheet(isPresented: $isShowingAbout) {
                 AboutView { Task { await refreshAll() } }
             }
+            .sheet(isPresented: $isShowingHouseholdPaywall) {
+                PaywallView()
+            }
             .sheet(isPresented: $isShowingFilter) {
                 ServiceFilterView(
                     services: knownServices,
@@ -212,7 +217,11 @@ struct ContentView: View {
                 }
 
                 Button {
-                    isConfirmingAddAllToHousehold = true
+                    if purchases.isPremium {
+                        isConfirmingAddAllToHousehold = true
+                    } else {
+                        isShowingHouseholdPaywall = true
+                    }
                 } label: {
                     Label("Add all to household list", systemImage: "person.2")
                 }
@@ -518,6 +527,10 @@ struct ContentView: View {
     }
 
     private func addAllToHousehold() async {
+        guard purchases.isPremium else {
+            isShowingHouseholdPaywall = true
+            return
+        }
         isAddingAllToHousehold = true
         defer { isAddingAllToHousehold = false }
         for show in addableToHousehold {
