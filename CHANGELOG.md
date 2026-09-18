@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.0
+
 - Add Run Script phase to embed git commit hash in Info.plist
 
 - Bump version to 2.2.1 (2)
