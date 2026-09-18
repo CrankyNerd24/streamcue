@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// Presented from Settings when a free-tier user taps a premium feature.
 /// A one-time, non-consumable unlock — not a subscription.
