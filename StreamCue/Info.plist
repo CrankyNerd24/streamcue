@@ -8,7 +8,7 @@
 	<false/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.streamcue.weeklyRefresh</string>
+		<string>com.streamcue.nightlyRefresh</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

@@ -7,11 +7,11 @@ import SwiftData
 /// — the interval below is a floor requested, not a promise.
 @MainActor
 enum BackgroundRefresh {
-    static let taskID = "com.streamcue.weeklyRefresh"
+    static let taskID = "com.streamcue.nightlyRefresh"
 
-    /// One week. iOS may run it sooner if you use the app often, or later —
+    /// One night. iOS may run it sooner if you use the app often, or later —
     /// or not at all if the device is low on battery.
-    static let interval: TimeInterval = 7 * 24 * 60 * 60
+    static let interval: TimeInterval = 24 * 60 * 60
 
     static func schedule() {
         let request = BGAppRefreshTaskRequest(identifier: taskID)

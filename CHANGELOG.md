@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Change background refresh from weekly to nightly
+
 - Add OMDb attribution to Settings, required by its CC BY-NC licence
 
 - Add a manual Watched toggle to shows, synced to the household list the
