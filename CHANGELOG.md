@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add OMDb attribution to Settings, required by its CC BY-NC licence
+
 - Add a manual Watched toggle to shows, synced to the household list the
   same way movies are
 

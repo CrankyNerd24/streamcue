@@ -1036,6 +1036,9 @@ struct AboutView: View {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
+                    Text("Ratings by OMDb API.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondary)
                 }
             }
             .sheet(isPresented: $isShowingHouseholdShare) {
