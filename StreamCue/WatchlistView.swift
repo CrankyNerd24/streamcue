@@ -193,6 +193,7 @@ struct WatchlistView: View {
                         }
                         Button {
                             movie.watched = false
+                            Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: false) }
                         } label: {
                             Label("Unwatch", systemImage: "arrow.uturn.backward")
                         }
@@ -627,6 +628,9 @@ struct MovieDetailView: View {
             Section {
                 Toggle("Watched", isOn: $movie.watched)
                     .tint(Theme.free)
+                    .onChange(of: movie.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: watched) }
+                    }
             }
 
             if !cast.isEmpty {

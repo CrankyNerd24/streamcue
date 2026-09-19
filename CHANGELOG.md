@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix marking a movie watched/unwatched not syncing to the household list
+
 - Add shared Xcode scheme
 
 - Bump marketing version to 2.3.0
