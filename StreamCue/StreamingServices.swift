@@ -26,25 +26,58 @@ enum StreamingServices {
         "YouTube": "youtube://",
     ]
 
+    /// Drives the button's styling — `.free` is the only one that ever gets
+    /// `Theme.free`. A service you pay for is still a paid service even when
+    /// it happens to be the one you subscribed to.
+    enum Kind {
+        case subscribed
+        case free
+        case other
+    }
+
     struct Destination {
         let label: String
         let url: URL
+        let kind: Kind
     }
 
-    /// `providers` should already be in the priority you'd want to watch on
-    /// (free before subscription before rent/buy) — the first one with an
-    /// installed, mapped app wins.
-    static func destination(providers: [String], watchLink: String?) -> Destination? {
-        for name in providers {
-            if let scheme = schemes[name],
-               let url = URL(string: scheme),
-               UIApplication.shared.canOpenURL(url) {
-                return Destination(label: "Open in \(name)", url: url)
+    /// Picks where "Watch now" should go, in priority order: a service the
+    /// user already pays for beats free/ad-supported, which beats anything
+    /// else (rent/buy, or a subscription service that isn't theirs). Within
+    /// whichever group wins, the first entry with an installed, mapped app
+    /// deep-links straight in; otherwise the whole call falls back to the
+    /// stored JustWatch link, still carrying that group's `Kind` so the
+    /// button styles correctly either way.
+    static func destination(
+        free: [String],
+        subscription: [String],
+        rentOrBuy: [String],
+        mySubscriptions: Set<String>,
+        watchLink: String?
+    ) -> Destination? {
+        let subscribedHere = subscription.filter { mySubscriptions.contains($0) }
+        let otherSubscription = subscription.filter { !mySubscriptions.contains($0) }
+
+        let groups: [(names: [String], kind: Kind)] = [
+            (subscribedHere, .subscribed),
+            (free, .free),
+            (otherSubscription + rentOrBuy, .other)
+        ]
+
+        for group in groups {
+            for name in group.names {
+                if let scheme = schemes[name],
+                   let url = URL(string: scheme),
+                   UIApplication.shared.canOpenURL(url) {
+                    return Destination(label: "Open in \(name)", url: url, kind: group.kind)
+                }
             }
         }
-        if let watchLink, let url = URL(string: watchLink) {
-            return Destination(label: "Watch now", url: url)
+
+        guard let leadGroup = groups.first(where: { !$0.names.isEmpty }),
+              let watchLink, let url = URL(string: watchLink) else {
+            return nil
         }
-        return nil
+        return Destination(label: "Watch now", url: url, kind: leadGroup.kind)
     }
 }

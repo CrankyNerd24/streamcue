@@ -511,6 +511,11 @@ struct MovieDetailView: View {
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
     @Environment(\.openURL) private var openURL
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var mySubscriptions: Set<String> {
+        Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+    }
 
     var body: some View {
         List {
@@ -561,7 +566,10 @@ struct MovieDetailView: View {
             }
 
             if let destination = StreamingServices.destination(
-                providers: movie.freeOn + movie.subscriptionOn + movie.rentOrBuyOn,
+                free: movie.freeOn,
+                subscription: movie.subscriptionOn,
+                rentOrBuy: movie.rentOrBuyOn,
+                mySubscriptions: mySubscriptions,
                 watchLink: movie.watchLink
             ) {
                 Section {
@@ -570,6 +578,7 @@ struct MovieDetailView: View {
                     } label: {
                         Label(destination.label, systemImage: "play.rectangle.fill")
                     }
+                    .tint(destination.kind == .free ? Theme.free : nil)
                 }
             }
 

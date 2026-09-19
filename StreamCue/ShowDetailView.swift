@@ -9,6 +9,11 @@ struct ShowDetailView: View {
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
     @Environment(\.openURL) private var openURL
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var mySubscriptions: Set<String> {
+        Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+    }
 
     var body: some View {
         List {
@@ -98,7 +103,10 @@ struct ShowDetailView: View {
             }
 
             if let destination = StreamingServices.destination(
-                providers: show.freeOn + show.subscriptionOn + show.rentOrBuyOn,
+                free: show.freeOn,
+                subscription: show.subscriptionOn,
+                rentOrBuy: show.rentOrBuyOn,
+                mySubscriptions: mySubscriptions,
                 watchLink: show.watchLink
             ) {
                 Section {
@@ -107,6 +115,7 @@ struct ShowDetailView: View {
                     } label: {
                         Label(destination.label, systemImage: "play.rectangle.fill")
                     }
+                    .tint(destination.kind == .free ? Theme.free : nil)
                 }
             }
 

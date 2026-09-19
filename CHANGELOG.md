@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Lead Watch now with the user's own subscribed service, and style
+  free/ad-supported options green
+
 - Add CLAUDE.md
 
 - Add app icon badge for pending episodes
