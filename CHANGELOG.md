@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.1
+
 - Change background refresh from weekly to nightly
 
 - Add OMDb attribution to Settings, required by its CC BY-NC licence
