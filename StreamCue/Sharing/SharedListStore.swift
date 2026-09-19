@@ -52,14 +52,17 @@ final class SharedListStore {
     @MainActor
     private func syncToPersonalList(context: ModelContext) {
         for item in items where !Library.isIgnored(tmdbID: item.tmdbID, kind: item.kind, context: context) {
+            // Watched wins, same as the dedup merge in Library — this only
+            // ever turns a personal copy on, never off, so it can't fight
+            // with someone still watching it on their own device.
             switch item.kind {
             case .tv:
-                Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                let show = Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                if item.watched && !show.watched {
+                    show.watched = true
+                }
             case .movies:
                 let movie = Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
-                // Watched wins, same as the dedup merge in Library — this
-                // only ever turns a personal copy on, never off, so it can't
-                // fight with someone still watching it on their own device.
                 if item.watched && !movie.watched {
                     movie.watched = true
                 }

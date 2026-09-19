@@ -10,6 +10,9 @@ final class TrackedShow {
     var name: String = ""
     var posterPath: String?
     var status: String = ""
+    /// Manual, independent of per-episode tracking — same as TrackedMovie's
+    /// watched. It's what the household list's shared watched flag mirrors.
+    var watched: Bool = false
     var nextEpisodeLabel: String?
     var nextAirDate: Date?
     var lastEpisodeLabel: String?
@@ -46,6 +49,7 @@ final class TrackedShow {
         self.name = name
         self.posterPath = posterPath
         self.status = ""
+        self.watched = false
         self.subscriptionOn = []
         self.freeOn = []
         self.rentOrBuyOn = []

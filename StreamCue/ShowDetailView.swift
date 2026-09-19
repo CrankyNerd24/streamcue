@@ -61,6 +61,14 @@ struct ShowDetailView: View {
             }
 
             Section {
+                Toggle("Watched", isOn: $show.watched)
+                    .tint(Theme.free)
+                    .onChange(of: show.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: watched) }
+                    }
+            }
+
+            Section {
                 LabeledContent("Next") {
                     Text(show.effectiveAirDate == nil ? "No date announced" : show.scheduleSummary)
                         .multilineTextAlignment(.trailing)

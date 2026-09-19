@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a manual Watched toggle to shows, synced to the household list the
+  same way movies are
+
 - Fix marking a movie watched/unwatched not syncing to the household list
 
 - Add shared Xcode scheme

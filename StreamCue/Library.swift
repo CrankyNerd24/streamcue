@@ -134,6 +134,8 @@ enum Library {
                 // A reminder on either copy counts.
                 if keeper.reminderID == nil { keeper.reminderID = duplicate.reminderID }
                 if keeper.lastRefreshed == nil { keeper.lastRefreshed = duplicate.lastRefreshed }
+                // Watched wins: if either person marked it seen, it's seen.
+                if duplicate.watched { keeper.watched = true }
                 context.delete(duplicate)
             }
         }
