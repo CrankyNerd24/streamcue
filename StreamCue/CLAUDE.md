@@ -62,4 +62,4 @@ has the Add and Not interested buttons.
 
 ## Known gaps
 
-- OMDb attribution is required by its CC BY-NC licence and isn't displayed.
+None currently tracked.

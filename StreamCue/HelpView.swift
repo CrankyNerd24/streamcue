@@ -47,10 +47,6 @@ struct HelpView: View {
             Entry(
                 question: "What is “Ready to watch”?",
                 answer: "Episodes that have already aired and you haven't marked off. The green check means watched, the ✕ means skip it. Either one clears it from the list. It only looks back 30 days, and clears entries older than 60."
-            ),
-            Entry(
-                question: "Why is “Up next” showing when nothing is on tonight?",
-                answer: "So the screen always has a focal point. Airing today gets the colour bars down its edge; Up next is just the soonest thing coming, without them."
             )
         ]),
 
@@ -151,9 +147,24 @@ struct HelpView: View {
                 Text("Show and film data from TMDB. Ratings from OMDb where available.")
                     .font(.footnote)
                     .foregroundStyle(Theme.tertiary)
+                Text(buildInfo)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.tertiary)
             }
         }
         .navigationTitle("Help")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// "2.2.1 (3) · a1b2c3d" — the commit half needs a Run Script build
+    /// phase writing GitCommitHash into the built Info.plist; falls back to
+    /// just the version/build if that phase isn't set up yet.
+    private var buildInfo: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        let base = "Version \(version) (\(build))"
+        guard let commit = info?["GitCommitHash"] as? String, !commit.isEmpty else { return base }
+        return "\(base) · \(commit)"
     }
 }

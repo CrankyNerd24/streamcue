@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CloudKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var context
@@ -18,6 +19,10 @@ struct ContentView: View {
     @State private var isConfirmingReminders = false
     @State private var isWorkingOnReminders = false
     @State private var reminderResult: String?
+    @State private var isConfirmingAddAllToHousehold = false
+    @State private var isAddingAllToHousehold = false
+
+    @Environment(SharedListStore.self) private var sharedList
 
     @AppStorage("serviceFilter") private var serviceFilterRaw = ""
     @AppStorage("freeOnly") private var freeOnly = false
@@ -61,16 +66,8 @@ struct ContentView: View {
         }
     }
 
-    /// The soonest show that isn't on today — but only when nothing is on
-    /// today. Two card sections at once competed with each other, so this
-    /// stands in as the focal point rather than sitting alongside one.
-    private var upNext: [TrackedShow] {
-        guard airingToday.isEmpty else { return [] }
-        return Array(dated.prefix(1))
-    }
-
     private var upcoming: [TrackedShow] {
-        let promoted = Set(airingToday.map(\.tmdbID)).union(upNext.map(\.tmdbID))
+        let promoted = Set(airingToday.map(\.tmdbID))
         return dated.filter { !promoted.contains($0.tmdbID) }
     }
 
@@ -118,6 +115,18 @@ struct ContentView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("One per show with a confirmed air date, due at \(Notifications.hour):00 on the day it airs.")
+            }
+            .confirmationDialog(
+                "Add \(addableToHousehold.count) show\(addableToHousehold.count == 1 ? "" : "s") to the household list?",
+                isPresented: $isConfirmingAddAllToHousehold,
+                titleVisibility: .visible
+            ) {
+                Button("Add to household list") {
+                    Task { await addAllToHousehold() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Each becomes an independent copy — removing it later from either list won't affect the other.")
             }
             .alert(
                 "Reminders",
@@ -202,6 +211,13 @@ struct ContentView: View {
                     .disabled(isWorkingOnReminders)
                 }
 
+                Button {
+                    isConfirmingAddAllToHousehold = true
+                } label: {
+                    Label("Add all to household list", systemImage: "person.2")
+                }
+                .disabled(addableToHousehold.isEmpty || isAddingAllToHousehold)
+
                 Divider()
 
                 Button {
@@ -260,17 +276,9 @@ struct ContentView: View {
             if !airingToday.isEmpty {
                 header("Airing today", accented: true)
                 ForEach(airingToday) { show in
-                    heroRow(show, isTonight: true)
+                    heroRow(show)
                 }
                 .onDelete { remove(airingToday, at: $0) }
-            }
-
-            if !upNext.isEmpty {
-                header("Up next")
-                ForEach(upNext) { show in
-                    heroRow(show, isTonight: false)
-                }
-                .onDelete { remove(upNext, at: $0) }
             }
 
             readySection
@@ -334,9 +342,9 @@ struct ContentView: View {
         .plainRow()
     }
 
-    private func heroRow(_ show: TrackedShow, isTonight: Bool) -> some View {
+    private func heroRow(_ show: TrackedShow) -> some View {
         NavigationLink(destination: ShowDetailView(show: show)) {
-            TonightCard(show: show, isTonight: isTonight)
+            TonightCard(show: show)
         }
         .buttonStyle(.plain)
         .plainRow()
@@ -503,10 +511,25 @@ struct ContentView: View {
         freeOnly = false
     }
 
+    /// Shows not already on the household list.
+    private var addableToHousehold: [TrackedShow] {
+        let shared = Set(sharedList.items(for: .tv).map(\.tmdbID))
+        return shows.filter { !shared.contains($0.tmdbID) }
+    }
+
+    private func addAllToHousehold() async {
+        isAddingAllToHousehold = true
+        defer { isAddingAllToHousehold = false }
+        for show in addableToHousehold {
+            await sharedList.add(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath)
+        }
+    }
+
     private func remove(_ group: [TrackedShow], at offsets: IndexSet) {
         for index in offsets {
-            EpisodeSync.removeAll(forShowID: group[index].tmdbID, context: context)
-            context.delete(group[index])
+            let show = group[index]
+            let wasShared = sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
+            Library.removeShow(show, wasShared: wasShared, context: context)
         }
     }
 
@@ -554,19 +577,24 @@ struct ContentView: View {
 struct TonightCard: View {
     let show: TrackedShow
 
-    /// The colour-bar spine is reserved for something airing today. A promoted
-    /// "up next" show gets the card treatment without the flag.
-    var isTonight: Bool = true
+    @Environment(SharedListStore.self) private var sharedList
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Poster(path: show.posterPath, width: 62, height: 93, radius: 6)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(show.name)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(2)
+                HStack(spacing: 4) {
+                    Text(show.name)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(2)
+                    if sharedList.contains(tmdbID: show.tmdbID, kind: .tv) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                }
 
                 Text(show.heroSchedule)
                     .font(.subheadline)
@@ -595,12 +623,10 @@ struct TonightCard: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .padding(.leading, isTonight ? 6 : 0)
+        .padding(.leading, 6)
         .background(Theme.card)
         .overlay(alignment: .leading) {
-            if isTonight {
-                ColorBarSpine().frame(width: 4)
-            }
+            ColorBarSpine().frame(width: 4)
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -655,6 +681,8 @@ struct CompactRow: View {
     let show: TrackedShow
     var showsDivider: Bool = true
 
+    @Environment(SharedListStore.self) private var sharedList
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
@@ -672,6 +700,12 @@ struct CompactRow: View {
                 }
 
                 Spacer(minLength: 4)
+
+                if sharedList.contains(tmdbID: show.tmdbID, kind: .tv) {
+                    Image(systemName: "person.2.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
 
                 if let value = show.primaryScore {
                     VStack(alignment: .trailing, spacing: 0) {
@@ -867,12 +901,31 @@ struct AboutView: View {
     @State private var original = AppSettings.region
     @State private var isShowingIgnored = false
 
+    // Temporary, for verifying the household-share CloudKit plumbing before
+    // any shared-list UI exists. Remove once that UI lands.
+    @State private var householdShare: CKShare?
+    @State private var isShowingHouseholdShare = false
+    @State private var householdShareError: String?
+    @State private var isLoadingHouseholdShare = false
+    @State private var isHouseholdParticipant = false
+
     private func label(for hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
         components.minute = 0
         let date = Calendar.current.date(from: components) ?? .now
         return date.formatted(.dateTime.hour().minute())
+    }
+
+    private func presentHouseholdShare() async {
+        isLoadingHouseholdShare = true
+        defer { isLoadingHouseholdShare = false }
+        do {
+            householdShare = try await HouseholdShareManager.fetchOrCreateShare()
+            isShowingHouseholdShare = true
+        } catch {
+            householdShareError = error.localizedDescription
+        }
     }
 
     var body: some View {
@@ -953,11 +1006,56 @@ struct AboutView: View {
                     Text("Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access.")
                 }
 
+                if isHouseholdParticipant {
+                    Section {
+                        Text("You're on a household list someone else shared with you.")
+                            .foregroundStyle(Theme.secondary)
+                    } footer: {
+                        Text("Only the person who created a household list can invite others to it.")
+                    }
+                } else {
+                    Section {
+                        Button {
+                            Task { await presentHouseholdShare() }
+                        } label: {
+                            HStack {
+                                Text("Invite to household list")
+                                if isLoadingHouseholdShare {
+                                    Spacer()
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(isLoadingHouseholdShare)
+                    } footer: {
+                        Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
+                    }
+                }
+
                 Section {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
+                    Text("Ratings by OMDb API.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondary)
                 }
+            }
+            .sheet(isPresented: $isShowingHouseholdShare) {
+                if let householdShare {
+                    CloudSharingView(share: householdShare, container: .default())
+                }
+            }
+            .alert(
+                "Couldn't share",
+                isPresented: Binding(
+                    get: { householdShareError != nil },
+                    set: { if !$0 { householdShareError = nil } }
+                )
+            ) {
+                Button("OK") { householdShareError = nil }
+            } message: {
+                Text(householdShareError ?? "")
             }
             .onChange(of: notificationsEnabled) { _, enabled in
                 Task {
@@ -977,6 +1075,9 @@ struct AboutView: View {
             .onChange(of: autoReminders) { _, enabled in
                 guard enabled else { return }
                 Task { await ReminderSync.sync(shows) }
+            }
+            .task {
+                isHouseholdParticipant = await SharedListManager.isParticipantInSharedHousehold()
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

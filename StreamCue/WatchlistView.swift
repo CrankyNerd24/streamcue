@@ -14,6 +14,10 @@ struct WatchlistView: View {
     @State private var suggestions: [MovieSearchResult] = []
     @State private var isLoadingSuggestions = false
     @State private var preview: TitlePreview?
+    @State private var isConfirmingAddAllToHousehold = false
+    @State private var isAddingAllToHousehold = false
+
+    @Environment(SharedListStore.self) private var sharedList
 
     /// Searching filters your own list — use + to add something new.
     private var matching: [TrackedMovie] {
@@ -70,6 +74,13 @@ struct WatchlistView: View {
                                 Label("Delete all watched", systemImage: "trash")
                             }
                         }
+
+                        Button {
+                            isConfirmingAddAllToHousehold = true
+                        } label: {
+                            Label("Add all to household list", systemImage: "person.2")
+                        }
+                        .disabled(addableToHousehold.isEmpty || isAddingAllToHousehold)
                     } label: {
                         Label("Menu", systemImage: "ellipsis.circle")
                     }
@@ -86,9 +97,24 @@ struct WatchlistView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    for movie in watched { context.delete(movie) }
+                    for movie in watched {
+                        let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                        Library.removeMovie(movie, wasShared: wasShared, context: context)
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
+            }
+            .confirmationDialog(
+                "Add \(addableToHousehold.count) film\(addableToHousehold.count == 1 ? "" : "s") to the household list?",
+                isPresented: $isConfirmingAddAllToHousehold,
+                titleVisibility: .visible
+            ) {
+                Button("Add to household list") {
+                    Task { await addAllToHousehold() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Each becomes an independent copy — removing it later from either list won't affect the other.")
             }
             .task { await refreshStale() }
             .task(id: movies.count) { await loadSuggestions() }
@@ -160,12 +186,14 @@ struct WatchlistView: View {
                     .plainRow()
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            context.delete(movie)
+                            let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                            Library.removeMovie(movie, wasShared: wasShared, context: context)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
                         Button {
                             movie.watched = false
+                            Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: false) }
                         } label: {
                             Label("Unwatch", systemImage: "arrow.uturn.backward")
                         }
@@ -201,7 +229,11 @@ struct WatchlistView: View {
                 .plainRow()
             }
             .onDelete { offsets in
-                for index in offsets { context.delete(group[index]) }
+                for index in offsets {
+                    let movie = group[index]
+                    let wasShared = sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+                    Library.removeMovie(movie, wasShared: wasShared, context: context)
+                }
             }
         }
     }
@@ -359,6 +391,20 @@ struct WatchlistView: View {
         }
         isRefreshing = false
     }
+
+    /// Films not already on the household list.
+    private var addableToHousehold: [TrackedMovie] {
+        let shared = Set(sharedList.items(for: .movies).map(\.tmdbID))
+        return movies.filter { !shared.contains($0.tmdbID) }
+    }
+
+    private func addAllToHousehold() async {
+        isAddingAllToHousehold = true
+        defer { isAddingAllToHousehold = false }
+        for movie in addableToHousehold {
+            await sharedList.add(tmdbID: movie.tmdbID, kind: .movies, title: movie.title, posterPath: movie.posterPath)
+        }
+    }
 }
 
 // MARK: - Row
@@ -366,6 +412,8 @@ struct WatchlistView: View {
 struct MovieRow: View {
     let movie: TrackedMovie
     var showsDivider: Bool = true
+
+    @Environment(SharedListStore.self) private var sharedList
 
     var body: some View {
         VStack(spacing: 0) {
@@ -384,6 +432,12 @@ struct MovieRow: View {
                 }
 
                 Spacer(minLength: 4)
+
+                if sharedList.contains(tmdbID: movie.tmdbID, kind: .movies) {
+                    Image(systemName: "person.2.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
 
                 if let score = movie.primaryScore {
                     VStack(alignment: .trailing, spacing: 0) {
@@ -418,10 +472,31 @@ struct AddMovieView: View {
     @State private var results: [MovieSearchResult] = []
     @State private var isSearching = false
     @State private var errorMessage: String?
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         NavigationStack {
             List {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Theme.tertiary)
+                    TextField("Film title", text: $query)
+                        .focused($isSearchFocused)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await search() } }
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                            results = []
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .plainRow()
+
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
@@ -462,8 +537,6 @@ struct AddMovieView: View {
                     )
                 }
             }
-            .searchable(text: $query, prompt: "Film title")
-            .onSubmit(of: .search) { Task { await search() } }
             .navigationTitle("Add a film")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -471,6 +544,7 @@ struct AddMovieView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .onAppear { isSearchFocused = true }
         }
     }
 
@@ -510,7 +584,9 @@ struct MovieDetailView: View {
     @State private var isRefreshing = false
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
+    @State private var isAddingToHousehold = false
     @Environment(\.openURL) private var openURL
+    @Environment(SharedListStore.self) private var sharedList
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
 
     private var mySubscriptions: Set<String> {
@@ -557,6 +633,9 @@ struct MovieDetailView: View {
             Section {
                 Toggle("Watched", isOn: $movie.watched)
                     .tint(Theme.free)
+                    .onChange(of: movie.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: watched) }
+                    }
             }
 
             if !cast.isEmpty {
@@ -598,6 +677,24 @@ struct MovieDetailView: View {
                 }
             }
 
+            Section {
+                Button(role: isOnHouseholdList ? .destructive : nil) {
+                    Task { await toggleHousehold() }
+                } label: {
+                    HStack {
+                        Label(
+                            isOnHouseholdList ? "Remove from household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "person.2.slash" : "person.2"
+                        )
+                        Spacer()
+                        if isAddingToHousehold { ProgressView() }
+                    }
+                }
+                .disabled(isAddingToHousehold)
+            } footer: {
+                Text("An independent copy on the shared household list — removing it later from either list won't affect the other.")
+            }
+
             if let errorMessage {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
@@ -636,6 +733,25 @@ struct MovieDetailView: View {
             errorMessage = error.localizedDescription
         }
         isRefreshing = false
+    }
+
+    private var isOnHouseholdList: Bool {
+        sharedList.contains(tmdbID: movie.tmdbID, kind: .movies)
+    }
+
+    private func toggleHousehold() async {
+        isAddingToHousehold = true
+        defer { isAddingToHousehold = false }
+        if let existing = sharedList.item(tmdbID: movie.tmdbID, kind: .movies) {
+            await sharedList.remove(existing)
+        } else {
+            await sharedList.add(
+                tmdbID: movie.tmdbID,
+                kind: .movies,
+                title: movie.title,
+                posterPath: movie.posterPath
+            )
+        }
     }
 }
 

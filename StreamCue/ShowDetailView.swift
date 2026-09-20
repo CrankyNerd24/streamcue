@@ -6,6 +6,7 @@ struct ShowDetailView: View {
 
     @State private var isRefreshing = false
     @State private var isWorkingOnReminder = false
+    @State private var isAddingToHousehold = false
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
     @Environment(\.openURL) private var openURL
@@ -14,6 +15,8 @@ struct ShowDetailView: View {
     private var mySubscriptions: Set<String> {
         Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
     }
+
+    @Environment(SharedListStore.self) private var sharedList
 
     var body: some View {
         List {
@@ -61,6 +64,14 @@ struct ShowDetailView: View {
                     }
                     .padding(.vertical, 4)
                 }
+            }
+
+            Section {
+                Toggle("Watched", isOn: $show.watched)
+                    .tint(Theme.free)
+                    .onChange(of: show.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: watched) }
+                    }
             }
 
             Section {
@@ -159,6 +170,24 @@ struct ShowDetailView: View {
                 }
             }
 
+            Section {
+                Button(role: isOnHouseholdList ? .destructive : nil) {
+                    Task { await toggleHousehold() }
+                } label: {
+                    HStack {
+                        Label(
+                            isOnHouseholdList ? "Remove from household list" : "Add to household list",
+                            systemImage: isOnHouseholdList ? "person.2.slash" : "person.2"
+                        )
+                        Spacer()
+                        if isAddingToHousehold { ProgressView() }
+                    }
+                }
+                .disabled(isAddingToHousehold)
+            } footer: {
+                Text("An independent copy on the shared household list — removing it later from either list won't affect the other.")
+            }
+
             if let errorMessage {
                 Section {
                     Text(errorMessage).foregroundStyle(.red)
@@ -245,6 +274,25 @@ struct ShowDetailView: View {
             errorMessage = error.localizedDescription
         }
         isRefreshing = false
+    }
+
+    private var isOnHouseholdList: Bool {
+        sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
+    }
+
+    private func toggleHousehold() async {
+        isAddingToHousehold = true
+        defer { isAddingToHousehold = false }
+        if let existing = sharedList.item(tmdbID: show.tmdbID, kind: .tv) {
+            await sharedList.remove(existing)
+        } else {
+            await sharedList.add(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                posterPath: show.posterPath
+            )
+        }
     }
 }
 
