@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Derive a show's watched state from episode progress instead of a manual
+  toggle — caught up when nothing aired is still outstanding, un-caught-up
+  again the moment a new episode airs
+
 - Gate Watch now behind the premium unlock, everywhere it appears
 
 - Grandfather premium in for anyone who already had household sharing or
