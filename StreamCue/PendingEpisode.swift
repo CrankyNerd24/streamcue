@@ -77,6 +77,7 @@ enum EpisodeSync {
         ) else { return }
 
         let cutoff = Date().addingTimeInterval(-window)
+        var insertedNew = false
 
         for episode in season.episodes {
             guard let number = episode.episodeNumber,
@@ -108,6 +109,14 @@ enum EpisodeSync {
                 title: episode.name,
                 airDate: airDate
             ))
+            insertedNew = true
+        }
+
+        // A newly aired episode un-catches-you-up — "watched" for a show
+        // means caught up as of now, not caught up forever.
+        if insertedNew && show.watched {
+            show.watched = false
+            await SharedListStore.shared.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: false)
         }
     }
 

@@ -386,8 +386,14 @@ struct ContentView: View {
                 ForEach(pending) { episode in
                     PendingEpisodeCard(
                         episode: episode,
-                        onWatched: { episode.watched = true },
-                        onDismiss: { episode.dismissed = true }
+                        onWatched: {
+                            episode.watched = true
+                            markCaughtUpIfNeeded(after: episode)
+                        },
+                        onDismiss: {
+                            episode.dismissed = true
+                            markCaughtUpIfNeeded(after: episode)
+                        }
                     )
                     .plainRow()
                 }
@@ -509,6 +515,18 @@ struct ContentView: View {
     private func clearFilter() {
         serviceFilterRaw = ""
         freeOnly = false
+    }
+
+    /// "Watched" for a show is derived, not manual: caught up once nothing
+    /// it aired is still outstanding. Checked against `pending` filtering
+    /// the episode just actioned out by id, rather than waiting on the
+    /// query to reflect that mutation, so this is correct either way.
+    private func markCaughtUpIfNeeded(after episode: PendingEpisode) {
+        guard let show = shows.first(where: { $0.tmdbID == episode.showID }) else { return }
+        let stillPending = pending.contains { $0.id != episode.id && $0.showID == episode.showID }
+        guard !stillPending, !show.watched else { return }
+        show.watched = true
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: true) }
     }
 
     /// Shows not already on the household list.

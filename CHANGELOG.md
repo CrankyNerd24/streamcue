@@ -5,14 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Derive a show's watched state from episode progress instead of a manual
+  toggle — caught up when nothing aired is still outstanding, un-caught-up
+  again the moment a new episode airs
+
 - Bump marketing version to 2.3.1
 
 - Change background refresh from weekly to nightly
 
 - Add OMDb attribution to Settings, required by its CC BY-NC licence
-
-- Add a manual Watched toggle to shows, synced to the household list the
-  same way movies are
 
 - Fix marking a movie watched/unwatched not syncing to the household list
 
