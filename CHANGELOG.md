@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Open the JustWatch fallback in an in-app Safari sheet instead of
+  Safari, when Watch now can't deep-link straight into an app
+
 - Lead Watch now with the user's own subscribed service, and style
   free/ad-supported options green
 

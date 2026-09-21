@@ -1,12 +1,13 @@
 import Foundation
 import UIKit
 
-/// Resolves "Watch now" to the actual streaming app when possible, so
-/// tapping it doesn't route through a JustWatch page you then have to tap
-/// through again. TMDB's watch/providers endpoint doesn't expose per-title
-/// deep links (only JustWatch's paid affiliate API does), so this lands on
-/// the app's home screen, not the title itself — still one hop closer than
-/// today.
+/// Resolves "Watch now" to the actual streaming app when possible. TMDB's
+/// watch/providers endpoint doesn't expose per-title deep links (only
+/// JustWatch's paid affiliate API does), so an app match lands on that
+/// app's home screen, not the title itself. When nothing matches, the
+/// fallback is the stored JustWatch link — presented in an in-app Safari
+/// sheet (see `Presentation.web`, `SafariView`) rather than a full app
+/// switch, since it's an intermediate stop, not the real destination.
 enum StreamingServices {
     /// Provider name as TMDB returns it, mapped to that app's URL scheme.
     /// Anything not listed here, or not installed, falls back to the stored
@@ -35,10 +36,20 @@ enum StreamingServices {
         case other
     }
 
+    /// Whether tapping the button hands off to another app, or should stay
+    /// in StreamCue via an in-app Safari sheet. The JustWatch fallback is
+    /// always `.web` — no reason to fully kick someone out to Safari for a
+    /// page that's just an intermediate stop, not the destination itself.
+    enum Presentation {
+        case app
+        case web
+    }
+
     struct Destination {
         let label: String
         let url: URL
         let kind: Kind
+        let presentation: Presentation
     }
 
     /// Picks where "Watch now" should go, in priority order: a service the
@@ -69,7 +80,7 @@ enum StreamingServices {
                 if let scheme = schemes[name],
                    let url = URL(string: scheme),
                    UIApplication.shared.canOpenURL(url) {
-                    return Destination(label: "Open in \(name)", url: url, kind: group.kind)
+                    return Destination(label: "Open in \(name)", url: url, kind: group.kind, presentation: .app)
                 }
             }
         }
@@ -78,6 +89,6 @@ enum StreamingServices {
               let watchLink, let url = URL(string: watchLink) else {
             return nil
         }
-        return Destination(label: "Watch now", url: url, kind: leadGroup.kind)
+        return Destination(label: "Watch now", url: url, kind: leadGroup.kind, presentation: .web)
     }
 }
