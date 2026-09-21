@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Gate Watch now behind the premium unlock, everywhere it appears
+
 - Grandfather premium in for anyone who already had household sharing or
   automatic Reminders sync before the paywall shipped
 

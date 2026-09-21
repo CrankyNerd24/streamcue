@@ -128,17 +128,35 @@ struct ShowDetailView: View {
 
             if let watchNowDestination {
                 Section {
-                    Button {
-                        switch watchNowDestination.presentation {
-                        case .app:
-                            openURL(watchNowDestination.url)
-                        case .web:
-                            isShowingWatchNowSheet = true
+                    if purchases.isPremium {
+                        Button {
+                            switch watchNowDestination.presentation {
+                            case .app:
+                                openURL(watchNowDestination.url)
+                            case .web:
+                                isShowingWatchNowSheet = true
+                            }
+                        } label: {
+                            Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
                         }
-                    } label: {
-                        Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
+                        .tint(watchNowDestination.kind == .free ? Theme.free : nil)
+                    } else {
+                        Button {
+                            isShowingPaywall = true
+                        } label: {
+                            HStack {
+                                Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                        }
                     }
-                    .tint(watchNowDestination.kind == .free ? Theme.free : nil)
+                } footer: {
+                    if !purchases.isPremium {
+                        Text("Part of StreamCue Premium.")
+                    }
                 }
             }
 

@@ -1161,7 +1161,9 @@ struct PendingEpisodeCard: View {
     let onDismiss: () -> Void
 
     @State private var isShowingWatchNowSheet = false
+    @State private var isShowingPaywall = false
     @Environment(\.openURL) private var openURL
+    @Environment(PurchaseManager.self) private var purchases
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
 
     private var watchNowDestination: StreamingServices.Destination? {
@@ -1198,6 +1200,10 @@ struct PendingEpisodeCard: View {
             HStack(spacing: 14) {
                 if let watchNowDestination {
                     Button {
+                        guard purchases.isPremium else {
+                            isShowingPaywall = true
+                            return
+                        }
                         switch watchNowDestination.presentation {
                         case .app:
                             openURL(watchNowDestination.url)
@@ -1205,11 +1211,14 @@ struct PendingEpisodeCard: View {
                             isShowingWatchNowSheet = true
                         }
                     } label: {
-                        Image(systemName: "play.rectangle.fill")
+                        Image(systemName: purchases.isPremium ? "play.rectangle.fill" : "lock.fill")
                             .font(.title3)
-                            .foregroundStyle(watchNowDestination.kind == .free ? Theme.free : Theme.primary)
+                            .foregroundStyle(
+                                !purchases.isPremium ? Theme.tertiary :
+                                watchNowDestination.kind == .free ? Theme.free : Theme.primary
+                            )
                     }
-                    .accessibilityLabel("Watch now")
+                    .accessibilityLabel(purchases.isPremium ? "Watch now" : "Watch now — Premium")
                 }
 
                 Button(action: onWatched) {
@@ -1239,6 +1248,9 @@ struct PendingEpisodeCard: View {
             if let watchNowDestination {
                 SafariView(url: watchNowDestination.url)
             }
+        }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView()
         }
     }
 }
