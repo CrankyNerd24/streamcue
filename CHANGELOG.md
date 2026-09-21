@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a Watch now button to Ready to watch cards on the Shows tab
+
 - Open the JustWatch fallback in an in-app Safari sheet instead of
   Safari, when Watch now can't deep-link straight into an app
 
