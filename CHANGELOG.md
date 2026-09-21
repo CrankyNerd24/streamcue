@@ -11,6 +11,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Gate household sharing and automatic Reminders sync behind a StoreKit
   premium unlock
 
+- Add a Watch now button to Ready to watch cards on the Shows tab
+
+- Open the JustWatch fallback in an in-app Safari sheet instead of
+  Safari, when Watch now can't deep-link straight into an app
+
+- Lead Watch now with the user's own subscribed service, and style
+  free/ad-supported options green
+
+- Bump marketing version to 2.3.1
+
+- Change background refresh from weekly to nightly
+
+- Add OMDb attribution to Settings, required by its CC BY-NC licence
+
+- Add a manual Watched toggle to shows, synced to the household list the
+  same way movies are
+
+- Fix marking a movie watched/unwatched not syncing to the household list
+
 - Add shared Xcode scheme
 
 - Bump marketing version to 2.3.0

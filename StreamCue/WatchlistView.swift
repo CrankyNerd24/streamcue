@@ -200,6 +200,7 @@ struct WatchlistView: View {
                         }
                         Button {
                             movie.watched = false
+                            Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: false) }
                         } label: {
                             Label("Unwatch", systemImage: "arrow.uturn.backward")
                         }
@@ -596,9 +597,25 @@ struct MovieDetailView: View {
     @State private var cast: [CastMember] = []
     @State private var isAddingToHousehold = false
     @State private var isShowingPaywall = false
-
+    @State private var isShowingWatchNowSheet = false
+    @Environment(\.openURL) private var openURL
     @Environment(SharedListStore.self) private var sharedList
     @Environment(PurchaseManager.self) private var purchases
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var mySubscriptions: Set<String> {
+        Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+    }
+
+    private var watchNowDestination: StreamingServices.Destination? {
+        StreamingServices.destination(
+            free: movie.freeOn,
+            subscription: movie.subscriptionOn,
+            rentOrBuy: movie.rentOrBuyOn,
+            mySubscriptions: mySubscriptions,
+            watchLink: movie.watchLink
+        )
+    }
 
     var body: some View {
         List {
@@ -640,11 +657,30 @@ struct MovieDetailView: View {
             Section {
                 Toggle("Watched", isOn: $movie.watched)
                     .tint(Theme.free)
+                    .onChange(of: movie.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: watched) }
+                    }
             }
 
             if !cast.isEmpty {
                 Section("Cast") {
                     CastStrip(cast: cast)
+                }
+            }
+
+            if let watchNowDestination {
+                Section {
+                    Button {
+                        switch watchNowDestination.presentation {
+                        case .app:
+                            openURL(watchNowDestination.url)
+                        case .web:
+                            isShowingWatchNowSheet = true
+                        }
+                    } label: {
+                        Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
+                    }
+                    .tint(watchNowDestination.kind == .free ? Theme.free : nil)
                 }
             }
 
@@ -711,6 +747,11 @@ struct MovieDetailView: View {
         }
         .sheet(isPresented: $isShowingPaywall) {
             PaywallView()
+        }
+        .sheet(isPresented: $isShowingWatchNowSheet) {
+            if let watchNowDestination {
+                SafariView(url: watchNowDestination.url)
+            }
         }
     }
 

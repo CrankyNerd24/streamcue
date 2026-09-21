@@ -395,6 +395,7 @@ struct ContentView: View {
                 ForEach(pending) { episode in
                     PendingEpisodeCard(
                         episode: episode,
+                        show: shows.first { $0.tmdbID == episode.showID },
                         onWatched: { episode.watched = true },
                         onDismiss: { episode.dismissed = true }
                     )
@@ -1087,6 +1088,9 @@ struct AboutView: View {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
+                    Text("Ratings by OMDb API.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondary)
                 }
             }
             .sheet(isPresented: $isShowingHouseholdShare) {
@@ -1149,8 +1153,27 @@ struct AboutView: View {
 /// Stays highlighted until it's marked watched or dismissed.
 struct PendingEpisodeCard: View {
     let episode: PendingEpisode
+    /// The show this episode belongs to, if it's still tracked — needed to
+    /// resolve Watch now. Absent only in the edge case of a lingering
+    /// episode whose show was removed since it was recorded.
+    let show: TrackedShow?
     let onWatched: () -> Void
     let onDismiss: () -> Void
+
+    @State private var isShowingWatchNowSheet = false
+    @Environment(\.openURL) private var openURL
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var watchNowDestination: StreamingServices.Destination? {
+        guard let show else { return nil }
+        return StreamingServices.destination(
+            free: show.freeOn,
+            subscription: show.subscriptionOn,
+            rentOrBuy: show.rentOrBuyOn,
+            mySubscriptions: Set(Subscriptions.decode(subscriptionsRaw).map(\.name)),
+            watchLink: show.watchLink
+        )
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -1173,6 +1196,22 @@ struct PendingEpisodeCard: View {
             Spacer(minLength: 4)
 
             HStack(spacing: 14) {
+                if let watchNowDestination {
+                    Button {
+                        switch watchNowDestination.presentation {
+                        case .app:
+                            openURL(watchNowDestination.url)
+                        case .web:
+                            isShowingWatchNowSheet = true
+                        }
+                    } label: {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.title3)
+                            .foregroundStyle(watchNowDestination.kind == .free ? Theme.free : Theme.primary)
+                    }
+                    .accessibilityLabel("Watch now")
+                }
+
                 Button(action: onWatched) {
                     Image(systemName: "checkmark.circle")
                         .font(.title3)
@@ -1196,5 +1235,10 @@ struct PendingEpisodeCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.bottom, 8)
+        .sheet(isPresented: $isShowingWatchNowSheet) {
+            if let watchNowDestination {
+                SafariView(url: watchNowDestination.url)
+            }
+        }
     }
 }

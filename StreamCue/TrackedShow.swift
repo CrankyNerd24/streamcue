@@ -10,12 +10,18 @@ final class TrackedShow {
     var name: String = ""
     var posterPath: String?
     var status: String = ""
+    /// Manual, independent of per-episode tracking — same as TrackedMovie's
+    /// watched. It's what the household list's shared watched flag mirrors.
+    var watched: Bool = false
     var nextEpisodeLabel: String?
     var nextAirDate: Date?
     var lastEpisodeLabel: String?
     var subscriptionOn: [String] = []
     var freeOn: [String] = []
     var rentOrBuyOn: [String] = []
+    /// JustWatch page for this title in the current region — where "where to
+    /// watch" actually sends you when you tap it.
+    var watchLink: String?
     var addedAt: Date = Date.now
     var lastRefreshed: Date?
     var reminderID: String?
@@ -46,6 +52,7 @@ final class TrackedShow {
         self.name = name
         self.posterPath = posterPath
         self.status = ""
+        self.watched = false
         self.subscriptionOn = []
         self.freeOn = []
         self.rentOrBuyOn = []
@@ -125,6 +132,7 @@ extension TrackedShow {
         subscriptionOn = availability.subscription
         freeOn = availability.free
         rentOrBuyOn = availability.rentOrBuy
+        watchLink = availability.link
         lastRefreshed = .now
 
         // Ratings are a bonus — never let a failure here break the refresh.

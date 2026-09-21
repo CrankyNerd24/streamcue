@@ -15,6 +15,9 @@ final class TrackedMovie {
     var freeOn: [String] = []
     var subscriptionOn: [String] = []
     var rentOrBuyOn: [String] = []
+    /// JustWatch page for this title in the current region — where "where to
+    /// watch" actually sends you when you tap it.
+    var watchLink: String?
 
     var imdbID: String?
     var tmdbScore: Double?
@@ -125,6 +128,7 @@ extension TrackedMovie {
         freeOn = availability.free
         subscriptionOn = availability.subscription
         rentOrBuyOn = availability.rentOrBuy
+        watchLink = availability.link
         lastRefreshed = .now
 
         if includeRatings || imdbScore == nil, let imdbID, !imdbID.isEmpty {

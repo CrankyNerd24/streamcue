@@ -52,13 +52,31 @@ final class SharedListStore {
     @MainActor
     private func syncToPersonalList(context: ModelContext) {
         for item in items where !Library.isIgnored(tmdbID: item.tmdbID, kind: item.kind, context: context) {
+            // Watched wins, same as the dedup merge in Library — this only
+            // ever turns a personal copy on, never off, so it can't fight
+            // with someone still watching it on their own device.
             switch item.kind {
             case .tv:
-                Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                let show = Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                if item.watched && !show.watched {
+                    show.watched = true
+                }
             case .movies:
-                Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
+                let movie = Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
+                if item.watched && !movie.watched {
+                    movie.watched = true
+                }
             }
         }
+    }
+
+    /// Pushes this device's watched state for a title already on the
+    /// household list up to the shared record, so marking something watched
+    /// personally shows up as watched on everyone else's copy too. A no-op
+    /// if the title isn't shared, or the shared record already agrees.
+    func syncWatched(tmdbID: Int, kind: MediaKind, watched: Bool) async {
+        guard let item = item(tmdbID: tmdbID, kind: kind), item.watched != watched else { return }
+        await setWatched(item, watched: watched)
     }
 
     func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?) async {
