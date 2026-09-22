@@ -52,9 +52,14 @@ struct ContentView: View {
         }
     }
 
-    /// Everything with a known date, soonest first.
+    /// Everything with a known date, soonest first — except a show already
+    /// sitting in Ready to watch. Once an aired episode needs action, that
+    /// card is the one place for it; a hero/upcoming row for the same show
+    /// would just be a redundant reminder of something already surfaced.
     private var dated: [TrackedShow] {
-        visible.filter { $0.effectiveAirDate != nil }
+        let readyShowIDs = Set(pending.map(\.showID))
+        return visible
+            .filter { $0.effectiveAirDate != nil && !readyShowIDs.contains($0.tmdbID) }
             .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
 

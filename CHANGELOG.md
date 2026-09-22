@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Hide a show from the hero/upcoming sections once it has an episode
+  sitting in Ready to watch, so it isn't shown twice
+
 - Add a Watched button to the title preview sheet, alongside Add and Not
   interested
 
