@@ -120,6 +120,7 @@ struct TitlePreviewSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(SharedListStore.self) private var sharedList
     @State private var availability: Availability?
     @State private var isLoading = true
     @State private var cast: [CastMember] = []
@@ -188,6 +189,17 @@ struct TitlePreviewSheet: View {
                     .padding(.top, 4)
 
                     if !preview.isTracked {
+                        Button {
+                            markWatched()
+                            dismiss()
+                        } label: {
+                            Label("Watched", systemImage: "checkmark.circle")
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                        .foregroundStyle(Theme.free)
+
                         Button {
                             Library.ignore(
                                 tmdbID: preview.id,
@@ -290,6 +302,25 @@ struct TitlePreviewSheet: View {
             availability = try? await TMDBClient.shared.availability(id: preview.id)
         case .movies:
             availability = try? await TMDBClient.shared.movieAvailability(id: preview.id)
+        }
+    }
+
+    /// Tracks it exactly like the Add button does — same `onAdd`, so it gets
+    /// the same refresh for full details — then marks it watched on top.
+    /// For a show this is just an initial value: the next episode sync will
+    /// correct it if anything within the back-catalogue window is still
+    /// actually unwatched.
+    private func markWatched() {
+        onAdd()
+        switch preview.kind {
+        case .tv:
+            guard let show = Library.show(tmdbID: preview.id, context: context) else { return }
+            show.watched = true
+            Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: true) }
+        case .movies:
+            guard let movie = Library.movie(tmdbID: preview.id, context: context) else { return }
+            movie.watched = true
+            Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: true) }
         }
     }
 }

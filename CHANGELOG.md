@@ -4,6 +4,10 @@ All notable changes to StreamCue are documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+- Add a Watched button to the title preview sheet, alongside Add and Not
+  interested
+
 - Bump marketing version to 2.3.2
 
 - Derive a show's watched state from episode progress instead of a manual
