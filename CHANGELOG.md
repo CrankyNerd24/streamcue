@@ -4,6 +4,7 @@ All notable changes to StreamCue are documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+- Bump marketing version to 2.3.2
 
 - Derive a show's watched state from episode progress instead of a manual
   toggle — caught up when nothing aired is still outstanding, un-caught-up
