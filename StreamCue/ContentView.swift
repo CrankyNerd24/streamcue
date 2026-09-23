@@ -544,7 +544,13 @@ struct ContentView: View {
         isAddingAllToHousehold = true
         defer { isAddingAllToHousehold = false }
         for show in addableToHousehold {
-            await sharedList.add(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath)
+            await sharedList.add(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
+            )
         }
     }
 

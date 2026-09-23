@@ -81,6 +81,9 @@ struct ShowDetailView: View {
                             .monospacedDigit()
                     }
                 }
+                .onChange(of: show.dayOffset) { _, dayOffset in
+                    Task { await sharedList.syncDayOffset(tmdbID: show.tmdbID, dayOffset: dayOffset) }
+                }
 
                 if let last = show.lastEpisodeLabel {
                     LabeledContent("Last aired") {
@@ -259,7 +262,8 @@ struct ShowDetailView: View {
                 tmdbID: show.tmdbID,
                 kind: .tv,
                 title: show.name,
-                posterPath: show.posterPath
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
             )
         }
     }

@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Sync a show's day offset across the household list
+
 - Hide a show from the hero/upcoming sections once it has an episode
   sitting in Ready to watch, so it isn't shown twice
 
