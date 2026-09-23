@@ -641,14 +641,6 @@ struct MovieDetailView: View {
                 }
             }
 
-            Section {
-                Toggle("Watched", isOn: $movie.watched)
-                    .tint(Theme.free)
-                    .onChange(of: movie.watched) { _, watched in
-                        Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: watched) }
-                    }
-            }
-
             if !cast.isEmpty {
                 Section("Cast") {
                     CastStrip(cast: cast)
@@ -669,6 +661,14 @@ struct MovieDetailView: View {
                     }
                     .tint(watchNowDestination.kind == .free ? Theme.free : nil)
                 }
+            }
+
+            Section {
+                Toggle("Watched", isOn: $movie.watched)
+                    .tint(Theme.free)
+                    .onChange(of: movie.watched) { _, watched in
+                        Task { await sharedList.syncWatched(tmdbID: movie.tmdbID, kind: .movies, watched: watched) }
+                    }
             }
 
             if !movie.freeOn.isEmpty {
