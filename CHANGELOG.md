@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Tapping a Ready to watch card opens the show, like every other row
+
 - Add a Watch now button to Ready to watch cards on the Shows tab
 
 - Open the JustWatch fallback in an in-app Safari sheet instead of

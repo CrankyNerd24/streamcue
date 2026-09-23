@@ -1150,8 +1150,8 @@ struct PendingEpisodeCard: View {
         )
     }
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+    private var cardInfo: some View {
+        HStack(spacing: 12) {
             Poster(path: episode.posterPath, width: 44, height: 66, radius: 5)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1166,6 +1166,19 @@ struct PendingEpisodeCard: View {
                 Text(episode.airedSummary)
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            if let show {
+                NavigationLink(destination: ShowDetailView(show: show)) {
+                    cardInfo
+                }
+                .buttonStyle(.plain)
+            } else {
+                cardInfo
             }
 
             Spacer(minLength: 4)
