@@ -98,7 +98,13 @@ enum SharedListManager {
     /// Saves an independent copy of a title onto the shared list — no
     /// ongoing link back to whatever personal-list item it came from.
     @discardableResult
-    static func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?) async throws -> SharedItem {
+    static func add(
+        tmdbID: Int,
+        kind: MediaKind,
+        title: String,
+        posterPath: String?,
+        dayOffset: Int = 0
+    ) async throws -> SharedItem {
         let context = try await resolveContext()
         let record = CKRecord(recordType: SharedItem.recordType, zoneID: context.zoneID)
         record.parent = CKRecord.Reference(recordID: rootRecordID(in: context.zoneID), action: .none)
@@ -110,7 +116,8 @@ enum SharedListManager {
             title: title,
             posterPath: posterPath,
             watched: false,
-            addedAt: .now
+            addedAt: .now,
+            dayOffset: dayOffset
         ).apply(to: record)
 
         let saved = try await context.database.save(record)
@@ -124,6 +131,15 @@ enum SharedListManager {
         let context = try await resolveContext()
         let record = try await context.database.record(for: item.recordID)
         record[SharedItem.Field.watched] = (watched ? 1 : 0) as CKRecordValue
+        _ = try await context.database.save(record)
+    }
+
+    /// TV only. Whoever last changed it wins for the whole household — the
+    /// same broadcast delay usually applies to everyone watching it there.
+    static func setDayOffset(_ item: SharedItem, dayOffset: Int) async throws {
+        let context = try await resolveContext()
+        let record = try await context.database.record(for: item.recordID)
+        record[SharedItem.Field.dayOffset] = dayOffset as CKRecordValue
         _ = try await context.database.save(record)
     }
 

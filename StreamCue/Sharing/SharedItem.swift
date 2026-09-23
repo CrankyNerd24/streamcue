@@ -20,6 +20,7 @@ struct SharedItem: Identifiable, Equatable {
         static let posterPath = "posterPath"
         static let watched = "watched"
         static let addedAt = "addedAt"
+        static let dayOffset = "dayOffset"
     }
 
     var recordID: CKRecord.ID
@@ -29,6 +30,9 @@ struct SharedItem: Identifiable, Equatable {
     var posterPath: String?
     var watched: Bool
     var addedAt: Date
+    /// TV only — how many days a show reaches this household later than the
+    /// original broadcast. Meaningless for a film, always 0 there.
+    var dayOffset: Int
 
     var id: CKRecord.ID { recordID }
 }
@@ -50,6 +54,9 @@ extension SharedItem {
         self.posterPath = record[Field.posterPath] as? String
         self.watched = ((record[Field.watched] as? Int) ?? 0) != 0
         self.addedAt = addedAt
+        // Older records predate this field — 0 (no offset) is the right
+        // default for them, same as a freshly tracked show.
+        self.dayOffset = (record[Field.dayOffset] as? Int) ?? 0
     }
 
     func apply(to record: CKRecord) {
@@ -59,5 +66,6 @@ extension SharedItem {
         record[Field.posterPath] = posterPath as CKRecordValue?
         record[Field.watched] = (watched ? 1 : 0) as CKRecordValue
         record[Field.addedAt] = addedAt as CKRecordValue
+        record[Field.dayOffset] = dayOffset as CKRecordValue
     }
 }

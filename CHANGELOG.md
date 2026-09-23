@@ -13,14 +13,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Lead Watch now with the user's own subscribed service, and style
   free/ad-supported options green
 
+- Sync a show's day offset across the household list
+
+- Hide a show from the hero/upcoming sections once it has an episode
+  sitting in Ready to watch, so it isn't shown twice
+
+- Add a Watched button to the title preview sheet, alongside Add and Not
+  interested
+
+- Bump marketing version to 2.3.2
+
+- Derive a show's watched state from episode progress instead of a manual
+  toggle — caught up when nothing aired is still outstanding, un-caught-up
+  again the moment a new episode airs
+
 - Bump marketing version to 2.3.1
 
 - Change background refresh from weekly to nightly
 
 - Add OMDb attribution to Settings, required by its CC BY-NC licence
-
-- Add a manual Watched toggle to shows, synced to the household list the
-  same way movies are
 
 - Fix marking a movie watched/unwatched not syncing to the household list
 

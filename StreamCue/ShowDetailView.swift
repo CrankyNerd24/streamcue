@@ -78,14 +78,6 @@ struct ShowDetailView: View {
             }
 
             Section {
-                Toggle("Watched", isOn: $show.watched)
-                    .tint(Theme.free)
-                    .onChange(of: show.watched) { _, watched in
-                        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: watched) }
-                    }
-            }
-
-            Section {
                 LabeledContent("Next") {
                     Text(show.effectiveAirDate == nil ? "No date announced" : show.scheduleSummary)
                         .multilineTextAlignment(.trailing)
@@ -105,6 +97,9 @@ struct ShowDetailView: View {
                             .foregroundStyle(show.dayOffset == 0 ? Theme.tertiary : Theme.tonight)
                             .monospacedDigit()
                     }
+                }
+                .onChange(of: show.dayOffset) { _, dayOffset in
+                    Task { await sharedList.syncDayOffset(tmdbID: show.tmdbID, dayOffset: dayOffset) }
                 }
 
                 if let last = show.lastEpisodeLabel {
@@ -305,7 +300,8 @@ struct ShowDetailView: View {
                 tmdbID: show.tmdbID,
                 kind: .tv,
                 title: show.name,
-                posterPath: show.posterPath
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
             )
         }
     }

@@ -61,6 +61,11 @@ final class SharedListStore {
                 if item.watched && !show.watched {
                     show.watched = true
                 }
+                // Day offset has no "wins" — the household shares one
+                // broadcast delay, so whoever set it last is authoritative.
+                if item.dayOffset != show.dayOffset {
+                    show.dayOffset = item.dayOffset
+                }
             case .movies:
                 let movie = Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
                 if item.watched && !movie.watched {
@@ -79,13 +84,21 @@ final class SharedListStore {
         await setWatched(item, watched: watched)
     }
 
-    func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?) async {
+    /// Same idea as `syncWatched`, for a show's day offset. TV only — movies
+    /// have no such field.
+    func syncDayOffset(tmdbID: Int, dayOffset: Int) async {
+        guard let item = item(tmdbID: tmdbID, kind: .tv), item.dayOffset != dayOffset else { return }
+        await setDayOffset(item, dayOffset: dayOffset)
+    }
+
+    func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?, dayOffset: Int = 0) async {
         do {
             let item = try await SharedListManager.add(
                 tmdbID: tmdbID,
                 kind: kind,
                 title: title,
-                posterPath: posterPath
+                posterPath: posterPath,
+                dayOffset: dayOffset
             )
             items.insert(item, at: 0)
         } catch {
@@ -100,6 +113,18 @@ final class SharedListStore {
             try await SharedListManager.setWatched(item, watched: watched)
         } catch {
             items[index].watched = !watched
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setDayOffset(_ item: SharedItem, dayOffset: Int) async {
+        guard let index = items.firstIndex(of: item) else { return }
+        let previous = items[index].dayOffset
+        items[index].dayOffset = dayOffset
+        do {
+            try await SharedListManager.setDayOffset(item, dayOffset: dayOffset)
+        } catch {
+            items[index].dayOffset = previous
             errorMessage = error.localizedDescription
         }
     }

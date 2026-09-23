@@ -52,9 +52,14 @@ struct ContentView: View {
         }
     }
 
-    /// Everything with a known date, soonest first.
+    /// Everything with a known date, soonest first — except a show already
+    /// sitting in Ready to watch. Once an aired episode needs action, that
+    /// card is the one place for it; a hero/upcoming row for the same show
+    /// would just be a redundant reminder of something already surfaced.
     private var dated: [TrackedShow] {
-        visible.filter { $0.effectiveAirDate != nil }
+        let readyShowIDs = Set(pending.map(\.showID))
+        return visible
+            .filter { $0.effectiveAirDate != nil && !readyShowIDs.contains($0.tmdbID) }
             .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
 
@@ -387,8 +392,14 @@ struct ContentView: View {
                     PendingEpisodeCard(
                         episode: episode,
                         show: shows.first { $0.tmdbID == episode.showID },
-                        onWatched: { episode.watched = true },
-                        onDismiss: { episode.dismissed = true }
+                        onWatched: {
+                            episode.watched = true
+                            markCaughtUpIfNeeded(after: episode)
+                        },
+                        onDismiss: {
+                            episode.dismissed = true
+                            markCaughtUpIfNeeded(after: episode)
+                        }
                     )
                     .plainRow()
                 }
@@ -512,6 +523,18 @@ struct ContentView: View {
         freeOnly = false
     }
 
+    /// "Watched" for a show is derived, not manual: caught up once nothing
+    /// it aired is still outstanding. Checked against `pending` filtering
+    /// the episode just actioned out by id, rather than waiting on the
+    /// query to reflect that mutation, so this is correct either way.
+    private func markCaughtUpIfNeeded(after episode: PendingEpisode) {
+        guard let show = shows.first(where: { $0.tmdbID == episode.showID }) else { return }
+        let stillPending = pending.contains { $0.id != episode.id && $0.showID == episode.showID }
+        guard !stillPending, !show.watched else { return }
+        show.watched = true
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: true) }
+    }
+
     /// Shows not already on the household list.
     private var addableToHousehold: [TrackedShow] {
         let shared = Set(sharedList.items(for: .tv).map(\.tmdbID))
@@ -522,7 +545,13 @@ struct ContentView: View {
         isAddingAllToHousehold = true
         defer { isAddingAllToHousehold = false }
         for show in addableToHousehold {
-            await sharedList.add(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath)
+            await sharedList.add(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
+            )
         }
     }
 
