@@ -585,8 +585,24 @@ struct MovieDetailView: View {
     @State private var errorMessage: String?
     @State private var cast: [CastMember] = []
     @State private var isAddingToHousehold = false
-
+    @State private var isShowingWatchNowSheet = false
+    @Environment(\.openURL) private var openURL
     @Environment(SharedListStore.self) private var sharedList
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var mySubscriptions: Set<String> {
+        Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+    }
+
+    private var watchNowDestination: StreamingServices.Destination? {
+        StreamingServices.destination(
+            free: movie.freeOn,
+            subscription: movie.subscriptionOn,
+            rentOrBuy: movie.rentOrBuyOn,
+            mySubscriptions: mySubscriptions,
+            watchLink: movie.watchLink
+        )
+    }
 
     var body: some View {
         List {
@@ -636,6 +652,22 @@ struct MovieDetailView: View {
             if !cast.isEmpty {
                 Section("Cast") {
                     CastStrip(cast: cast)
+                }
+            }
+
+            if let watchNowDestination {
+                Section {
+                    Button {
+                        switch watchNowDestination.presentation {
+                        case .app:
+                            openURL(watchNowDestination.url)
+                        case .web:
+                            isShowingWatchNowSheet = true
+                        }
+                    } label: {
+                        Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
+                    }
+                    .tint(watchNowDestination.kind == .free ? Theme.free : nil)
                 }
             }
 
@@ -699,6 +731,11 @@ struct MovieDetailView: View {
                 forID: movie.tmdbID,
                 kind: .movies
             )) ?? []
+        }
+        .sheet(isPresented: $isShowingWatchNowSheet) {
+            if let watchNowDestination {
+                SafariView(url: watchNowDestination.url)
+            }
         }
     }
 

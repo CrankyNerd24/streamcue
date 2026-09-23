@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a Watch now button to Ready to watch cards on the Shows tab
+
+- Open the JustWatch fallback in an in-app Safari sheet instead of
+  Safari, when Watch now can't deep-link straight into an app
+
+- Lead Watch now with the user's own subscribed service, and style
+  free/ad-supported options green
+
 - Sync a show's day offset across the household list
 
 - Hide a show from the hero/upcoming sections once it has an episode
