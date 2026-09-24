@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.5
+
+- Fix a "client oplock error" alert when tapping the Day offset stepper
+  quickly on a show that's on the household list
+
 - Tapping a Ready to watch card opens the show, like every other row
 
 - Add a Watch now button to Ready to watch cards on the Shows tab
