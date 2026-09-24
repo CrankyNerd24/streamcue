@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Observation
 import SwiftData
@@ -86,6 +87,7 @@ final class SharedListStore {
 
     /// Same idea as `syncWatched`, for a show's day offset. TV only — movies
     /// have no such field.
+    @MainActor
     func syncDayOffset(tmdbID: Int, dayOffset: Int) async {
         guard let item = item(tmdbID: tmdbID, kind: .tv), item.dayOffset != dayOffset else { return }
         await setDayOffset(item, dayOffset: dayOffset)
@@ -117,15 +119,31 @@ final class SharedListStore {
         }
     }
 
+    /// Records with a day-offset push in flight. Tapping the stepper fires
+    /// one call per tap; rather than racing a CloudKit save per tap, later
+    /// taps just update `items` and the push already running picks up the
+    /// newest value when its current save finishes.
+    private var dayOffsetPushes: Set<CKRecord.ID> = []
+
+    @MainActor
     func setDayOffset(_ item: SharedItem, dayOffset: Int) async {
         guard let index = items.firstIndex(of: item) else { return }
-        let previous = items[index].dayOffset
         items[index].dayOffset = dayOffset
-        do {
-            try await SharedListManager.setDayOffset(item, dayOffset: dayOffset)
-        } catch {
-            items[index].dayOffset = previous
-            errorMessage = error.localizedDescription
+        guard dayOffsetPushes.insert(item.recordID).inserted else { return }
+        defer { dayOffsetPushes.remove(item.recordID) }
+
+        var confirmed = item.dayOffset
+        while let latest = items.first(where: { $0.recordID == item.recordID })?.dayOffset, latest != confirmed {
+            do {
+                try await SharedListManager.setDayOffset(item, dayOffset: latest)
+                confirmed = latest
+            } catch {
+                if let index = items.firstIndex(where: { $0.recordID == item.recordID }) {
+                    items[index].dayOffset = confirmed
+                }
+                errorMessage = error.localizedDescription
+                return
+            }
         }
     }
 

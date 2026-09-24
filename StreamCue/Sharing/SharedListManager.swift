@@ -131,7 +131,7 @@ enum SharedListManager {
         let context = try await resolveContext()
         let record = try await context.database.record(for: item.recordID)
         record[SharedItem.Field.watched] = (watched ? 1 : 0) as CKRecordValue
-        _ = try await context.database.save(record)
+        try await saveChangedKeys(record, in: context.database)
     }
 
     /// TV only. Whoever last changed it wins for the whole household — the
@@ -140,7 +140,23 @@ enum SharedListManager {
         let context = try await resolveContext()
         let record = try await context.database.record(for: item.recordID)
         record[SharedItem.Field.dayOffset] = dayOffset as CKRecordValue
-        _ = try await context.database.save(record)
+        try await saveChangedKeys(record, in: context.database)
+    }
+
+    /// `database.save(_:)` uses `.ifServerRecordUnchanged`, which rejects the
+    /// write ("client oplock error") whenever the record changed between our
+    /// fetch and our save — a housemate's edit, or our own previous save
+    /// still in flight. These are single-field, last-writer-wins updates, so
+    /// only send the field we touched and ignore the change tag.
+    private static func saveChangedKeys(_ record: CKRecord, in database: CKDatabase) async throws {
+        let (results, _) = try await database.modifyRecords(
+            saving: [record],
+            deleting: [],
+            savePolicy: .changedKeys
+        )
+        if case .failure(let error) = results[record.recordID] {
+            throw error
+        }
     }
 
     static func remove(_ item: SharedItem) async throws {
