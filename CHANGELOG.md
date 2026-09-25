@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Track shared workspace data
+
 - Set build number to 1 for 2.3.15
 
 - Bump build number to 3
