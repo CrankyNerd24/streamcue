@@ -3,6 +3,19 @@ import SwiftData
 
 struct ShowDetailView: View {
     @Bindable var show: TrackedShow
+    /// This show's recorded episodes, actioned or not, newest first — so a
+    /// watched or dismissed one can be put back in Ready to watch.
+    @Query private var episodes: [PendingEpisode]
+
+    init(show: TrackedShow) {
+        _show = Bindable(show)
+        let id = show.tmdbID
+        _episodes = Query(
+            filter: #Predicate<PendingEpisode> { $0.showID == id },
+            sort: \PendingEpisode.airDate,
+            order: .reverse
+        )
+    }
 
     @State private var isRefreshing = false
     @State private var isWorkingOnReminder = false
@@ -143,6 +156,20 @@ struct ShowDetailView: View {
                 Text("Schedule")
             } footer: {
                 Text("Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.")
+            }
+
+            if !episodes.isEmpty {
+                Section {
+                    ForEach(episodes) { episode in
+                        EpisodeStatusRow(episode: episode) { watched in
+                            setWatched(episode, watched)
+                        }
+                    }
+                } header: {
+                    Text("Recent episodes")
+                } footer: {
+                    Text("Undo puts a watched or dismissed episode back in Ready to watch.")
+                }
             }
 
             if !cast.isEmpty {
@@ -305,6 +332,21 @@ struct ShowDetailView: View {
         }
     }
 
+    /// Marks one episode watched, or undoes a watched or dismissed one, then
+    /// re-derives the show's caught-up flag the same way the Shows tab does:
+    /// caught up once nothing it aired is still outstanding.
+    private func setWatched(_ episode: PendingEpisode, _ watched: Bool) {
+        episode.watched = watched
+        episode.dismissed = false
+        let outstanding = !watched || episodes.contains {
+            $0.id != episode.id && !$0.watched && !$0.dismissed
+        }
+        guard show.watched == outstanding else { return }
+        show.watched = !outstanding
+        let caughtUp = show.watched
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: caughtUp) }
+    }
+
     /// Refuses a link that doesn't parse rather than saving something Watch
     /// now can't open. A blank name falls back to the link's host.
     private func saveCustomWatchOn() {
@@ -386,6 +428,50 @@ struct ShowDetailView: View {
                 dayOffset: show.dayOffset
             )
         }
+    }
+}
+
+/// One recorded episode with its state and the action that flips it:
+/// mark an outstanding one watched, or undo a watched or dismissed one.
+private struct EpisodeStatusRow: View {
+    let episode: PendingEpisode
+    let setWatched: (Bool) -> Void
+
+    private var isOutstanding: Bool { !episode.watched && !episode.dismissed }
+
+    private var status: String {
+        if episode.watched { return "Watched" }
+        if episode.dismissed { return "Dismissed" }
+        return episode.airedSummary
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(episode.label)
+                    .lineLimit(1)
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(episode.watched ? Theme.free : Theme.tertiary)
+            }
+            Spacer(minLength: 4)
+            if isOutstanding {
+                Button {
+                    setWatched(true)
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(Theme.free)
+                }
+                .accessibilityLabel("Mark watched")
+            } else {
+                Button("Undo") {
+                    setWatched(false)
+                }
+                .accessibilityLabel(episode.watched ? "Mark unwatched" : "Restore")
+            }
+        }
+        .buttonStyle(.borderless)
     }
 }
 
