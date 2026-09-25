@@ -1195,13 +1195,8 @@ struct PendingEpisodeCard: View {
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
 
     private var watchNowDestination: StreamingServices.Destination? {
-        guard let show else { return nil }
-        return StreamingServices.destination(
-            free: show.freeOn,
-            subscription: show.subscriptionOn,
-            rentOrBuy: show.rentOrBuyOn,
-            mySubscriptions: Set(Subscriptions.decode(subscriptionsRaw).map(\.name)),
-            watchLink: show.watchLink
+        show?.watchNowDestination(
+            mySubscriptions: Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
         )
     }
 

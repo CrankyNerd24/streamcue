@@ -10,6 +10,9 @@ struct ShowDetailView: View {
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
     @State private var isShowingWatchNowSheet = false
+    @State private var isEditingCustomWatchOn = false
+    @State private var draftWatchOnName = ""
+    @State private var draftWatchOnLink = ""
     @Environment(\.openURL) private var openURL
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
 
@@ -18,12 +21,41 @@ struct ShowDetailView: View {
     }
 
     private var watchNowDestination: StreamingServices.Destination? {
-        StreamingServices.destination(
-            free: show.freeOn,
-            subscription: show.subscriptionOn,
-            rentOrBuy: show.rentOrBuyOn,
-            mySubscriptions: mySubscriptions,
-            watchLink: show.watchLink
+        show.watchNowDestination(mySubscriptions: mySubscriptions)
+    }
+
+    private static let customWatchOnTag = "\u{1}custom"
+
+    /// The subscribed services, alphabetical, for the Watch on menu.
+    private var subscribedNames: [String] {
+        mySubscriptions.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// A picked subscribed service is stored as just its name; anything with
+    /// its own link (or a name that's no longer subscribed) is "custom".
+    private var isCustomWatchOn: Bool {
+        guard let name = show.watchOnName else { return false }
+        return show.watchOnLink != nil || !mySubscriptions.contains(name)
+    }
+
+    private var watchOnSelection: Binding<String> {
+        Binding(
+            get: {
+                guard let name = show.watchOnName else { return "" }
+                return isCustomWatchOn ? Self.customWatchOnTag : name
+            },
+            set: { tag in
+                switch tag {
+                case "":
+                    show.watchOnName = nil
+                    show.watchOnLink = nil
+                case Self.customWatchOnTag:
+                    break
+                default:
+                    show.watchOnName = tag
+                    show.watchOnLink = nil
+                }
+            }
         )
     }
 
@@ -119,8 +151,8 @@ struct ShowDetailView: View {
                 }
             }
 
-            if let watchNowDestination {
-                Section {
+            Section {
+                if let watchNowDestination {
                     Button {
                         switch watchNowDestination.presentation {
                         case .app:
@@ -133,6 +165,25 @@ struct ShowDetailView: View {
                     }
                     .tint(watchNowDestination.kind == .free ? Theme.free : nil)
                 }
+
+                Picker("Watch on", selection: watchOnSelection) {
+                    Text("Automatic").tag("")
+                    ForEach(subscribedNames, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                    if isCustomWatchOn, let name = show.watchOnName {
+                        Text(name).tag(Self.customWatchOnTag)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Button(isCustomWatchOn ? "Edit custom link…" : "Custom link…") {
+                    draftWatchOnName = isCustomWatchOn ? (show.watchOnName ?? "") : ""
+                    draftWatchOnLink = show.watchOnLink ?? ""
+                    isEditingCustomWatchOn = true
+                }
+            } footer: {
+                Text("Automatic picks a service you've ticked on the Services tab first. Use a custom link for a service TMDB doesn't list.")
             }
 
             if !show.freeOn.isEmpty {
@@ -235,6 +286,37 @@ struct ShowDetailView: View {
                 SafariView(url: watchNowDestination.url)
             }
         }
+        .alert("Custom link", isPresented: $isEditingCustomWatchOn) {
+            TextField("Name, e.g. Dropout", text: $draftWatchOnName)
+            TextField("Link, e.g. dropout.tv", text: $draftWatchOnLink)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Save", action: saveCustomWatchOn)
+            if isCustomWatchOn {
+                Button("Remove", role: .destructive) {
+                    show.watchOnName = nil
+                    show.watchOnLink = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Watch now opens this instead — the service's app if it's installed, otherwise its website.")
+        }
+    }
+
+    /// Refuses a link that doesn't parse rather than saving something Watch
+    /// now can't open. A blank name falls back to the link's host.
+    private func saveCustomWatchOn() {
+        guard let url = StreamingServices.normalizedLink(draftWatchOnLink) else {
+            errorMessage = "That link doesn't look right — try something like dropout.tv."
+            return
+        }
+        errorMessage = nil
+        let typedName = draftWatchOnName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = url.host()?.replacingOccurrences(of: "www.", with: "") ?? url.absoluteString
+        show.watchOnName = typedName.isEmpty ? host : typedName
+        show.watchOnLink = url.absoluteString
     }
 
     private var offsetLabel: String {

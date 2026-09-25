@@ -22,6 +22,10 @@ final class TrackedShow {
     /// JustWatch page for this title in the current region — where "where to
     /// watch" actually sends you when you tap it.
     var watchLink: String?
+    /// Per-show "Watch on" override — see `StreamingServices.Override`.
+    /// Nil name means automatic.
+    var watchOnName: String?
+    var watchOnLink: String?
     var addedAt: Date = Date.now
     var lastRefreshed: Date?
     var reminderID: String?
@@ -61,6 +65,23 @@ final class TrackedShow {
 }
 
 extension TrackedShow {
+    var watchOnOverride: StreamingServices.Override? {
+        guard let watchOnName, !watchOnName.isEmpty else { return nil }
+        return StreamingServices.Override(name: watchOnName, link: watchOnLink)
+    }
+
+    /// Where Watch now goes for this show, honouring the override.
+    func watchNowDestination(mySubscriptions: Set<String>) -> StreamingServices.Destination? {
+        StreamingServices.destination(
+            free: freeOn,
+            subscription: subscriptionOn,
+            rentOrBuy: rentOrBuyOn,
+            mySubscriptions: mySubscriptions,
+            watchLink: watchLink,
+            override: watchOnOverride
+        )
+    }
+
     /// The air date as it applies to you. Every grouping, label, notification
     /// and reminder reads this rather than `nextAirDate`, so a shifted show
     /// can't say Thursday in one place and Wednesday in another.
