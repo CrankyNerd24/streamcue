@@ -30,6 +30,14 @@ final class SharedListStore {
         items.first { $0.tmdbID == tmdbID && $0.kind == kind }
     }
 
+    /// Signed out (`notAuthenticated`), or signed in but not usable yet —
+    /// e.g. still finishing setup or waiting on a password re-entry
+    /// (`accountTemporarilyUnavailable`).
+    private static let accountUnavailableCodes: Set<CKError.Code> = [
+        .notAuthenticated,
+        .accountTemporarilyUnavailable,
+    ]
+
     /// Fetches the household list and mirrors any new title into this
     /// device's own personal list — a shared show is meant to behave exactly
     /// like one you added yourself (air dates, notifications, everything),
@@ -43,11 +51,12 @@ final class SharedListStore {
             syncToPersonalList(context: context)
         } catch SharedListError.notSetUp {
             items = []
-        } catch let error as CKError where error.code == .notAuthenticated {
-            // No iCloud account on this device (the Simulator, usually) —
-            // CloudKit reports it as a missing auth token. This runs on every
-            // launch, so treat it like having no household list rather than
-            // alerting; sharing actions still surface it if tried.
+        } catch let error as CKError where Self.accountUnavailableCodes.contains(error.code) {
+            // No usable iCloud account on this device (the Simulator,
+            // usually) — CloudKit reports it as a bad or missing auth token.
+            // This runs on every launch, so treat it like having no household
+            // list rather than alerting; sharing actions still surface it if
+            // tried.
             items = []
         } catch {
             errorMessage = error.localizedDescription
