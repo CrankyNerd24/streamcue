@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.14
+
 - Add a per-show Watch on setting: Automatic, one of your services, or a
   custom name and link for services TMDB doesn't list (e.g. Dropout)
 
