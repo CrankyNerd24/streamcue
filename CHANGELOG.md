@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.16
+
 - Make a show's Recent episodes section collapsible; it remembers
   whether you left it open or closed
 
