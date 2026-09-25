@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.15] - 2026-09-25
+
 - Bump marketing version to 2.3.15
 
 - Undo watched or dismissed on a single episode: a show's page now lists
