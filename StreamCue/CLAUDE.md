@@ -60,6 +60,12 @@ has the Add and Not interested buttons.
   skipped on automatic refreshes unless a title has none.
 - TMDB genre IDs differ between TV and film. Don't mix them.
 
+## App Store
+
+- Content Rights is declared as containing third-party content (TMDB
+  metadata and images, OMDb ratings). Keep that in mind if the data
+  sources change.
+
 ## Known gaps
 
 None currently tracked.
