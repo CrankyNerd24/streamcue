@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.7
+
 - Airing today, Airing next, No date announced and Finished on the Shows
   tab collapse with a tap on their header, like Ready to watch, and
   remember whether they're open
