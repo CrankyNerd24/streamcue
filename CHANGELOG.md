@@ -8,7 +8,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Bump marketing version to 2.3.9
 
 - Don't show a Household list error on launch when the device isn't
-  signed into iCloud or isn't part of a household
+  signed into iCloud (or its account is temporarily unavailable) or isn't
+  part of a household
 
 - Bump marketing version to 2.3.8
 
