@@ -419,9 +419,18 @@ struct ServicePickerView: View {
         defer { isLoading = false }
         do {
             // TMDB returns these in its own display-priority order, which
-            // reads as random in a long list. Sort by name instead.
+            // reads as random in a long list. Services you already have come
+            // first, then everything else, each alphabetical. Based on what
+            // was checked when the picker opened, not live, so rows don't
+            // jump around under your finger as you tick them.
+            let subscribed = Set(selected.map(\.id))
             all = try await TMDBClient.shared.availableProviders()
-                .sorted { $0.providerName.localizedStandardCompare($1.providerName) == .orderedAscending }
+                .sorted { a, b in
+                    let aSubscribed = subscribed.contains(a.providerId)
+                    let bSubscribed = subscribed.contains(b.providerId)
+                    if aSubscribed != bSubscribed { return aSubscribed }
+                    return a.providerName.localizedStandardCompare(b.providerName) == .orderedAscending
+                }
         } catch {
             errorMessage = error.localizedDescription
         }
