@@ -28,6 +28,8 @@ struct ShowDetailView: View {
     @State private var draftWatchOnLink = ""
     @Environment(\.openURL) private var openURL
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+    /// Shared across shows — collapsing it once keeps it collapsed everywhere.
+    @AppStorage("recentEpisodesExpanded") private var isRecentEpisodesExpanded = true
 
     private var mySubscriptions: Set<String> {
         Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
@@ -160,15 +162,37 @@ struct ShowDetailView: View {
 
             if !episodes.isEmpty {
                 Section {
-                    ForEach(episodes) { episode in
-                        EpisodeStatusRow(episode: episode) { watched in
-                            setWatched(episode, watched)
+                    if isRecentEpisodesExpanded {
+                        ForEach(episodes) { episode in
+                            EpisodeStatusRow(episode: episode) { watched in
+                                setWatched(episode, watched)
+                            }
                         }
                     }
                 } header: {
-                    Text("Recent episodes")
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isRecentEpisodesExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text("Recent episodes")
+                            Text("\(episodes.count)")
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.tertiary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .rotationEffect(.degrees(isRecentEpisodesExpanded ? 90 : 0))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(isRecentEpisodesExpanded ? "Collapses the list" : "Expands the list")
                 } footer: {
-                    Text("Undo puts a watched or dismissed episode back in Ready to watch.")
+                    if isRecentEpisodesExpanded {
+                        Text("Undo puts a watched or dismissed episode back in Ready to watch.")
+                    }
                 }
             }
 
