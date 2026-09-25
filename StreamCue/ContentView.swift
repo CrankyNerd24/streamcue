@@ -23,6 +23,8 @@ struct ContentView: View {
     @State private var reminderResult: String?
     @State private var isConfirmingAddAllToHousehold = false
     @State private var isAddingAllToHousehold = false
+    /// The episode just ticked off in Ready to watch, for the Undo banner.
+    @State private var lastActioned: ActionedEpisode?
 
     @Environment(SharedListStore.self) private var sharedList
 
@@ -126,6 +128,18 @@ struct ContentView: View {
                 } else {
                     list
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let lastActioned {
+                    undoBanner(lastActioned)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: lastActioned?.id)
+            .task(id: lastActioned?.id) {
+                guard lastActioned != nil else { return }
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                lastActioned = nil
             }
             .background(Theme.background)
             .navigationTitle("Shows")
@@ -447,11 +461,19 @@ struct ContentView: View {
                         show: shows.first { $0.tmdbID == episode.showID },
                         onWatched: {
                             episode.watched = true
-                            markCaughtUpIfNeeded(after: episode)
+                            lastActioned = ActionedEpisode(
+                                episode: episode,
+                                watched: true,
+                                markedShowCaughtUp: markCaughtUpIfNeeded(after: episode)
+                            )
                         },
                         onDismiss: {
                             episode.dismissed = true
-                            markCaughtUpIfNeeded(after: episode)
+                            lastActioned = ActionedEpisode(
+                                episode: episode,
+                                watched: false,
+                                markedShowCaughtUp: markCaughtUpIfNeeded(after: episode)
+                            )
                         }
                     )
                     .plainRow()
@@ -582,12 +604,57 @@ struct ContentView: View {
     /// it aired is still outstanding. Checked against `pending` filtering
     /// the episode just actioned out by id, rather than waiting on the
     /// query to reflect that mutation, so this is correct either way.
-    private func markCaughtUpIfNeeded(after episode: PendingEpisode) {
-        guard let show = shows.first(where: { $0.tmdbID == episode.showID }) else { return }
+    /// Returns whether it flipped the show to caught up, so Undo knows to
+    /// flip it back.
+    @discardableResult
+    private func markCaughtUpIfNeeded(after episode: PendingEpisode) -> Bool {
+        guard let show = shows.first(where: { $0.tmdbID == episode.showID }) else { return false }
         let stillPending = pending.contains { $0.id != episode.id && $0.showID == episode.showID }
-        guard !stillPending, !show.watched else { return }
+        guard !stillPending, !show.watched else { return false }
         show.watched = true
         Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: true) }
+        return true
+    }
+
+    /// Puts the episode back in Ready to watch, and un-catches-up its show
+    /// if ticking it off is what caught it up.
+    private func undo(_ action: ActionedEpisode) {
+        lastActioned = nil
+        let episode = action.episode
+        guard episode.modelContext != nil, !episode.isDeleted else { return }
+        episode.watched = false
+        episode.dismissed = false
+        guard action.markedShowCaughtUp,
+              let show = shows.first(where: { $0.tmdbID == episode.showID }),
+              show.watched else { return }
+        show.watched = false
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: false) }
+    }
+
+    private func undoBanner(_ action: ActionedEpisode) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(action.watched ? "Marked watched" : "Dismissed")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.primary)
+                Text("\(action.showName) · \(action.label)")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button("Undo") { undo(action) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.unwatched)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     /// Shows not already on the household list.
@@ -1179,6 +1246,26 @@ struct AboutView: View {
 }
 
 // MARK: - Ready to watch
+
+/// An episode just ticked off in Ready to watch, held briefly so the banner
+/// can undo it. The labels are copied up front so the banner never reads a
+/// record a refresh has since pruned.
+struct ActionedEpisode {
+    let id = UUID()
+    let episode: PendingEpisode
+    let showName: String
+    let label: String
+    let watched: Bool
+    let markedShowCaughtUp: Bool
+
+    init(episode: PendingEpisode, watched: Bool, markedShowCaughtUp: Bool) {
+        self.episode = episode
+        self.showName = episode.showName
+        self.label = episode.label
+        self.watched = watched
+        self.markedShowCaughtUp = markedShowCaughtUp
+    }
+}
 
 /// Stays highlighted until it's marked watched or dismissed.
 struct PendingEpisodeCard: View {
