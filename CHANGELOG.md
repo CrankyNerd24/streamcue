@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- List your current services at the top of the Your services picker,
+  then the rest, each alphabetically
+
 - Bump marketing version to 2.3.11
 
 - Household list errors caused by a missing or unavailable iCloud account
