@@ -1009,7 +1009,7 @@ struct AboutView: View {
             householdShare = try await HouseholdShareManager.fetchOrCreateShare()
             isShowingHouseholdShare = true
         } catch {
-            householdShareError = error.localizedDescription
+            householdShareError = SharedListError.message(for: error)
         }
     }
 

@@ -30,14 +30,6 @@ final class SharedListStore {
         items.first { $0.tmdbID == tmdbID && $0.kind == kind }
     }
 
-    /// Signed out (`notAuthenticated`), or signed in but not usable yet —
-    /// e.g. still finishing setup or waiting on a password re-entry
-    /// (`accountTemporarilyUnavailable`).
-    private static let accountUnavailableCodes: Set<CKError.Code> = [
-        .notAuthenticated,
-        .accountTemporarilyUnavailable,
-    ]
-
     /// Fetches the household list and mirrors any new title into this
     /// device's own personal list — a shared show is meant to behave exactly
     /// like one you added yourself (air dates, notifications, everything),
@@ -51,7 +43,7 @@ final class SharedListStore {
             syncToPersonalList(context: context)
         } catch SharedListError.notSetUp {
             items = []
-        } catch let error as CKError where Self.accountUnavailableCodes.contains(error.code) {
+        } catch where SharedListError.isAccountUnavailable(error) {
             // No usable iCloud account on this device (the Simulator,
             // usually) — CloudKit reports it as a bad or missing auth token.
             // This runs on every launch, so treat it like having no household
@@ -59,7 +51,7 @@ final class SharedListStore {
             // tried.
             items = []
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 
@@ -121,7 +113,7 @@ final class SharedListStore {
             )
             items.insert(item, at: 0)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 
@@ -132,7 +124,7 @@ final class SharedListStore {
             try await SharedListManager.setWatched(item, watched: watched)
         } catch {
             items[index].watched = !watched
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 
@@ -158,7 +150,7 @@ final class SharedListStore {
                 if let index = items.firstIndex(where: { $0.recordID == item.recordID }) {
                     items[index].dayOffset = confirmed
                 }
-                errorMessage = error.localizedDescription
+                errorMessage = SharedListError.message(for: error)
                 return
             }
         }
@@ -171,7 +163,7 @@ final class SharedListStore {
             try await SharedListManager.remove(item)
         } catch {
             items = previous
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 

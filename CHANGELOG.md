@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.11
+
+- Household list errors caused by a missing or unavailable iCloud account
+  now say to sign in to iCloud in Settings, instead of CloudKit's "bad or
+  missing auth token"
+
 - Bump marketing version to 2.3.10
 
 - Bump marketing version to 2.3.9
