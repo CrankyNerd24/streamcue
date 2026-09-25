@@ -41,6 +41,14 @@ final class SharedListStore {
         do {
             items = try await SharedListManager.fetchAll()
             syncToPersonalList(context: context)
+        } catch SharedListError.notSetUp {
+            items = []
+        } catch let error as CKError where error.code == .notAuthenticated {
+            // No iCloud account on this device (the Simulator, usually) —
+            // CloudKit reports it as a missing auth token. This runs on every
+            // launch, so treat it like having no household list rather than
+            // alerting; sharing actions still surface it if tried.
+            items = []
         } catch {
             errorMessage = error.localizedDescription
         }

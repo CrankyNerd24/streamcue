@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Don't show a Household list error on launch when the device isn't
+  signed into iCloud or isn't part of a household
+
 - Bump marketing version to 2.3.8
 
 - Sort the Your services picker alphabetically
