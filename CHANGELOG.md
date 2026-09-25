@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.10
+
 - Bump marketing version to 2.3.9
 
 - Don't show a Household list error on launch when the device isn't
