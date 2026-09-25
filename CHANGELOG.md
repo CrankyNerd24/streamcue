@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.13
+
 - Add a Back to top button to the Your services picker, like Discover's
 
 - Bump marketing version to 2.3.12
