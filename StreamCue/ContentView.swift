@@ -10,6 +10,8 @@ struct ContentView: View {
         sort: \PendingEpisode.airDate,
         order: .reverse
     ) private var pending: [PendingEpisode]
+    /// Every recorded episode, watched and dismissed included — see `dated`.
+    @Query private var episodeRecords: [PendingEpisode]
 
     @State private var isAdding = false
     @State private var isShowingAbout = false
@@ -56,10 +58,26 @@ struct ContentView: View {
     /// sitting in Ready to watch. Once an aired episode needs action, that
     /// card is the one place for it; a hero/upcoming row for the same show
     /// would just be a redundant reminder of something already surfaced.
+    ///
+    /// Also skips a show whose next episode has already been recorded and
+    /// then marked watched or dismissed. TMDB keeps reporting today's
+    /// episode as "next" for the rest of its air date, so without this
+    /// ticking it off in Ready to watch drops it straight back into Airing
+    /// today.
     private var dated: [TrackedShow] {
         let readyShowIDs = Set(pending.map(\.showID))
+        var latestRecorded: [Int: Date] = [:]
+        for record in episodeRecords {
+            guard let airDate = record.airDate else { continue }
+            latestRecorded[record.showID] = max(latestRecorded[record.showID] ?? .distantPast, airDate)
+        }
+        let calendar = Calendar.current
         return visible
-            .filter { $0.effectiveAirDate != nil && !readyShowIDs.contains($0.tmdbID) }
+            .filter { show in
+                guard let date = show.effectiveAirDate, !readyShowIDs.contains(show.tmdbID) else { return false }
+                guard let recorded = latestRecorded[show.tmdbID] else { return true }
+                return calendar.startOfDay(for: recorded) < calendar.startOfDay(for: date)
+            }
             .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
 
