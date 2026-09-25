@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.8
+
 - Sort the Your services picker alphabetically
 
 - Bump marketing version to 2.3.7
