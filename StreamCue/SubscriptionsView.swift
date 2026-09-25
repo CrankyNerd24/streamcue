@@ -418,7 +418,10 @@ struct ServicePickerView: View {
         isLoading = true
         defer { isLoading = false }
         do {
+            // TMDB returns these in its own display-priority order, which
+            // reads as random in a long list. Sort by name instead.
             all = try await TMDBClient.shared.availableProviders()
+                .sorted { $0.providerName.localizedStandardCompare($1.providerName) == .orderedAscending }
         } catch {
             errorMessage = error.localizedDescription
         }
