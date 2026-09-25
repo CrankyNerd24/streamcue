@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.6
+
 - Marking today's episode watched in Ready to watch no longer drops the
   show back into Airing today
 
