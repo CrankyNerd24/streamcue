@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Marking today's episode watched in Ready to watch no longer drops the
+  show back into Airing today
+
 - Bump marketing version to 2.3.5
 
 - Fix a "client oplock error" alert when tapping the Day offset stepper
