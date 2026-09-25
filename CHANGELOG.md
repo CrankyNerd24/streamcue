@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Undo watched or dismissed on a single episode: a show's page now lists
+  its recent episodes, and Undo puts one back in Ready to watch
+
 - Bump marketing version to 2.3.14
 
 - Add a per-show Watch on setting: Automatic, one of your services, or a

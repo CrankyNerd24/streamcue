@@ -46,7 +46,7 @@ struct HelpView: View {
             ),
             Entry(
                 question: "What is “Ready to watch”?",
-                answer: "Episodes that have already aired and you haven't marked off. The green check means watched, the ✕ means skip it. Either one clears it from the list. It only looks back 30 days, and clears entries older than 60."
+                answer: "Episodes that have already aired and you haven't marked off. The green check means watched, the ✕ means skip it. Either one clears it from the list — to undo, open the show and tap Undo on the episode under Recent episodes. It only looks back 30 days, and clears entries older than 60."
             )
         ]),
 
