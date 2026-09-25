@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a per-show Watch on setting: Automatic, one of your services, or a
+  custom name and link for services TMDB doesn't list (e.g. Dropout)
+
+- Watch now sticks to your own services when a title is on one, instead
+  of falling through to another app when yours has no app to open
+
 - Bump marketing version to 2.3.13
 
 - Add a Back to top button to the Your services picker, like Discover's
