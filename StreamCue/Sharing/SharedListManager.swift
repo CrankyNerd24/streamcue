@@ -9,6 +9,32 @@ enum SharedListError: LocalizedError {
             return "There's no household list yet — create or accept a share first."
         }
     }
+
+    /// Signed out (`notAuthenticated`), or signed in but not usable yet —
+    /// e.g. still finishing setup or waiting on a password re-entry
+    /// (`accountTemporarilyUnavailable`).
+    static let accountUnavailableCodes: Set<CKError.Code> = [
+        .notAuthenticated,
+        .accountTemporarilyUnavailable,
+    ]
+
+    /// True if CloudKit failed because there's no usable iCloud account,
+    /// including when that's the reason behind a partial failure.
+    static func isAccountUnavailable(_ error: Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        if accountUnavailableCodes.contains(error.code) { return true }
+        return error.partialErrorsByItemID?.values.contains { isAccountUnavailable($0) } ?? false
+    }
+
+    /// What to show in an alert for a household-list failure. CloudKit's own
+    /// text for a missing iCloud account ("Account temporarily unavailable
+    /// due to bad or missing auth token") says nothing about how to fix it.
+    static func message(for error: Error) -> String {
+        if isAccountUnavailable(error) {
+            return "The household list needs iCloud. Sign in to iCloud in the Settings app — or finish any sign-in or password prompt there — then try again."
+        }
+        return error.localizedDescription
+    }
 }
 
 /// CRUD for the household's shared list, stored as raw `SharedItem` CloudKit
