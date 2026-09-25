@@ -30,10 +30,6 @@ final class SharedListStore {
         items.first { $0.tmdbID == tmdbID && $0.kind == kind }
     }
 
-    /// Fetches the household list and mirrors any new title into this
-    /// device's own personal list — a shared show is meant to behave exactly
-    /// like one you added yourself (air dates, notifications, everything),
-    /// not sit in a separate, feature-limited list of its own.
     /// Signed out (`notAuthenticated`), or signed in but not usable yet —
     /// e.g. still finishing setup or waiting on a password re-entry
     /// (`accountTemporarilyUnavailable`).
@@ -42,6 +38,10 @@ final class SharedListStore {
         .accountTemporarilyUnavailable,
     ]
 
+    /// Fetches the household list and mirrors any new title into this
+    /// device's own personal list — a shared show is meant to behave exactly
+    /// like one you added yourself (air dates, notifications, everything),
+    /// not sit in a separate, feature-limited list of its own.
     @MainActor
     func refresh(context: ModelContext) async {
         isLoading = true
