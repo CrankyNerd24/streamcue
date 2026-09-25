@@ -5,12 +5,6 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Track shared workspace data
-
-- Set build number to 1 for 2.3.15
-
-- Bump build number to 3
-
 - Bump marketing version to 2.3.15
 
 - Undo watched or dismissed on a single episode: a show's page now lists
