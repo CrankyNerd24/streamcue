@@ -30,6 +30,9 @@ struct ContentView: View {
     @AppStorage("freeOnly") private var freeOnly = false
     @AppStorage("lastAutoRefresh") private var lastAutoRefresh: Double = 0
     @AppStorage("readyExpanded") private var isReadyExpanded = true
+    /// Titles of the show sections the user has collapsed, newline-separated.
+    /// Stored by exclusion so every section starts out expanded.
+    @AppStorage("collapsedShowSections") private var collapsedSectionsRaw = ""
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -297,11 +300,13 @@ struct ContentView: View {
             }
 
             if !airingToday.isEmpty {
-                header("Airing today", accented: true)
-                ForEach(airingToday) { show in
-                    heroRow(show)
+                header("Airing today", count: airingToday.count, accented: true)
+                if isExpanded("Airing today") {
+                    ForEach(airingToday) { show in
+                        heroRow(show)
+                    }
+                    .onDelete { remove(airingToday, at: $0) }
                 }
-                .onDelete { remove(airingToday, at: $0) }
             }
 
             readySection
@@ -343,23 +348,53 @@ struct ContentView: View {
 
     // MARK: - Pieces
 
+    private var collapsedSections: Set<String> {
+        Set(collapsedSectionsRaw.split(separator: "\n").map(String.init))
+    }
+
+    private func isExpanded(_ title: String) -> Bool {
+        !collapsedSections.contains(title)
+    }
+
+    /// Tappable section header, same look as the Ready to watch one: a
+    /// chevron that turns to show whether the section is open, then the
+    /// title and how many shows are in it.
     private func header(
         _ title: String,
+        count: Int,
         accented: Bool = false,
         color: Color = Theme.tonight
     ) -> some View {
-        HStack(spacing: 6) {
-            if accented {
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
+        let expanded = isExpanded(title)
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                var collapsed = collapsedSections
+                if expanded {
+                    collapsed.insert(title)
+                } else {
+                    collapsed.remove(title)
+                }
+                collapsedSectionsRaw = collapsed.sorted().joined(separator: "\n")
             }
-            Text(title)
-                .font(.caption)
-                .kerning(0.5)
-                .foregroundStyle(accented ? color : Theme.secondary)
-            Spacer()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accented ? color : Theme.secondary)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                Text(title)
+                    .font(.caption)
+                    .kerning(0.5)
+                    .foregroundStyle(accented ? color : Theme.secondary)
+                Text("\(count)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.tertiary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.top, 14)
         .padding(.bottom, 2)
         .plainRow()
@@ -428,15 +463,17 @@ struct ContentView: View {
     @ViewBuilder
     private func section(_ title: String, _ group: [TrackedShow]) -> some View {
         if !group.isEmpty {
-            header(title)
-            ForEach(Array(group.enumerated()), id: \.element.id) { index, show in
-                NavigationLink(destination: ShowDetailView(show: show)) {
-                    CompactRow(show: show, showsDivider: index < group.count - 1)
+            header(title, count: group.count)
+            if isExpanded(title) {
+                ForEach(Array(group.enumerated()), id: \.element.id) { index, show in
+                    NavigationLink(destination: ShowDetailView(show: show)) {
+                        CompactRow(show: show, showsDivider: index < group.count - 1)
+                    }
+                    .buttonStyle(.plain)
+                    .plainRow()
                 }
-                .buttonStyle(.plain)
-                .plainRow()
+                .onDelete { remove(group, at: $0) }
             }
-            .onDelete { remove(group, at: $0) }
         }
     }
 

@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Airing today, Airing next, No date announced and Finished on the Shows
+  tab collapse with a tap on their header, like Ready to watch, and
+  remember whether they're open
+
 - Bump marketing version to 2.3.6
 
 - Marking today's episode watched in Ready to watch no longer drops the
