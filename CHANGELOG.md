@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a Back to top button to the Your services picker, like Discover's
+
 - Bump marketing version to 2.3.12
 
 - List your current services at the top of the Your services picker,
