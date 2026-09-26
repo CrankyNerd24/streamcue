@@ -28,8 +28,9 @@ struct ShowDetailView: View {
     @State private var draftWatchOnLink = ""
     @Environment(\.openURL) private var openURL
     @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
-    /// Shared across shows — collapsing it once keeps it collapsed everywhere.
-    @AppStorage("recentEpisodesExpanded") private var isRecentEpisodesExpanded = true
+    /// Starts collapsed every time a show opens — it's a history for the
+    /// occasional undo, not something to scroll past on every visit.
+    @State private var isRecentEpisodesExpanded = false
 
     private var mySubscriptions: Set<String> {
         Set(Subscriptions.decode(subscriptionsRaw).map(\.name))

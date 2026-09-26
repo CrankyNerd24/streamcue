@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Recent episodes on a show's page starts collapsed each time you open
+  the show
+
 ## [2.3.16] - 2026-09-25
 
 - Bump marketing version to 2.3.16
