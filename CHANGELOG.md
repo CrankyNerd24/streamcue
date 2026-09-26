@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.18] - 2026-09-26
+
 - Bump marketing version to 2.3.18
 
 - Show an Update available card at the top of the Shows tab when a newer
