@@ -80,7 +80,8 @@ enum AppUpdate {
 }
 
 /// Sits at the top of the Shows tab until you update or dismiss it. Dismissing
-/// hides it for that version only — the next release brings it back.
+/// hides it for that version only — the next release brings it back. Neutral
+/// colours on purpose: green, orange and amber each already mean something.
 struct UpdateCard: View {
     let version: String
     let onUpdate: () -> Void
@@ -90,7 +91,7 @@ struct UpdateCard: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: "arrow.down.app.fill")
                 .font(.title2)
-                .foregroundStyle(Theme.free)
+                .foregroundStyle(Theme.primary)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Update available")
@@ -107,7 +108,7 @@ struct UpdateCard: View {
             HStack(spacing: 14) {
                 Button("Update", action: onUpdate)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.free)
+                    .foregroundStyle(Theme.primary)
 
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle")
@@ -121,7 +122,7 @@ struct UpdateCard: View {
         .padding(12)
         .background(Theme.card)
         .overlay(alignment: .leading) {
-            Rectangle().fill(Theme.free).frame(width: 3)
+            Rectangle().fill(Theme.secondary).frame(width: 3)
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.top, 8)
