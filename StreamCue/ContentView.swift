@@ -37,6 +37,20 @@ struct ContentView: View {
     @AppStorage("collapsedShowSections") private var collapsedSectionsRaw = ""
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+
+    @AppStorage(AppUpdate.latestVersionKey) private var latestStoreVersion = ""
+    @AppStorage(AppUpdate.storeURLKey) private var storeURLRaw = ""
+    @AppStorage(AppUpdate.dismissedVersionKey) private var dismissedUpdateVersion = ""
+
+    /// A store release newer than this build that hasn't been dismissed.
+    private var availableUpdate: (version: String, url: URL)? {
+        guard !latestStoreVersion.isEmpty,
+              latestStoreVersion != dismissedUpdateVersion,
+              AppUpdate.isNewer(latestStoreVersion, than: AppUpdate.currentVersion),
+              let url = URL(string: storeURLRaw) else { return nil }
+        return (latestStoreVersion, url)
+    }
 
     private var selectedServices: Set<String> {
         Set(serviceFilterRaw.split(separator: "\n").map(String.init))
@@ -183,6 +197,7 @@ struct ContentView: View {
                 await Notifications.syncEnabledState()
                 await autoRefresh()
             }
+            .task { await AppUpdate.check() }
             .task(id: pending.count) { await Notifications.updateBadge(pending.count) }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
@@ -191,6 +206,7 @@ struct ContentView: View {
                         await Notifications.syncEnabledState()
                         await autoRefresh()
                     }
+                    Task { await AppUpdate.check() }
                 case .background:
                     BackgroundRefresh.schedule()
                 default:
@@ -299,6 +315,17 @@ struct ContentView: View {
 
     private var list: some View {
         List {
+            if let availableUpdate {
+                UpdateCard(
+                    version: availableUpdate.version,
+                    onUpdate: { openURL(availableUpdate.url) },
+                    onDismiss: {
+                        withAnimation { dismissedUpdateVersion = availableUpdate.version }
+                    }
+                )
+                .plainRow()
+            }
+
             if isFiltering {
                 filterStrip
             }
