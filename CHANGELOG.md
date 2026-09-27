@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add a Household list section to Help, and correct Help to say
+  background refresh runs nightly, not weekly
+
+- Bump marketing version to 2.4.0
+
+- Add a Share button to show and film pages and the preview sheet. It
+  sends the title, where it's streaming and a link to its TMDB page
+
 ## [2.3.20] - 2026-09-27
 
 - Bump marketing version to 2.3.20

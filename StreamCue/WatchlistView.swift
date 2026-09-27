@@ -712,6 +712,13 @@ struct MovieDetailView: View {
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ShareTitleButton(share: TitleShare(
+                tmdbID: movie.tmdbID,
+                kind: .movies,
+                title: movie.title,
+                free: movie.freeOn,
+                subscription: movie.subscriptionOn
+            ))
             Button {
                 Task { await refresh() }
             } label: {

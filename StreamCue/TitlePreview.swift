@@ -226,6 +226,15 @@ struct TitlePreviewSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    ShareTitleButton(share: TitleShare(
+                        tmdbID: preview.id,
+                        kind: preview.kind,
+                        title: preview.title,
+                        free: availability?.free ?? [],
+                        subscription: availability?.subscription ?? []
+                    ))
+                }
             }
             .task { await loadAvailability() }
             .task { await loadCast() }
