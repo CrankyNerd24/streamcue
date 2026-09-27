@@ -41,6 +41,7 @@ final class SharedListStore {
         do {
             items = try await SharedListManager.fetchAll()
             syncToPersonalList(context: context)
+            await backfillWatchedEpisodes(context: context)
         } catch SharedListError.notSetUp {
             items = []
         } catch where SharedListError.isAccountUnavailable(error) {
@@ -76,6 +77,7 @@ final class SharedListStore {
                 if item.dayOffset != show.dayOffset {
                     show.dayOffset = item.dayOffset
                 }
+                EpisodeSync.applySharedWatched(item.watchedEpisodes, to: show, context: context)
             case .movies:
                 let movie = Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
                 if item.watched && !movie.watched {
@@ -92,6 +94,73 @@ final class SharedListStore {
     func syncWatched(tmdbID: Int, kind: MediaKind, watched: Bool) async {
         guard let item = item(tmdbID: tmdbID, kind: kind), item.watched != watched else { return }
         await setWatched(item, watched: watched)
+    }
+
+    /// Pushes one episode's watched state to a shared show's record, so it
+    /// clears from Ready to watch on everyone else's device too. A no-op if
+    /// the show isn't shared or the record already agrees. Dismissing isn't
+    /// synced — skipping an episode is a personal choice.
+    ///
+    /// Pushes for the same show run one after another: each re-reads and
+    /// edits the record, and two in flight at once could each miss the
+    /// other's episode.
+    @MainActor
+    func syncEpisode(showID: Int, season: Int, episode: Int, watched: Bool) async {
+        guard let item = item(tmdbID: showID, kind: .tv) else { return }
+        let key = SharedItem.episodeKey(season: season, episode: episode)
+        guard item.watchedEpisodes.contains(key) != watched else { return }
+        await pushWatchedEpisodes(
+            item.recordID,
+            adding: watched ? [key] : [],
+            removing: watched ? [] : [key],
+            reportsErrors: true
+        )
+    }
+
+    @ObservationIgnored private var episodePushes: [CKRecord.ID: Task<Void, Never>] = [:]
+
+    @MainActor
+    private func pushWatchedEpisodes(
+        _ recordID: CKRecord.ID,
+        adding: Set<String>,
+        removing: Set<String>,
+        reportsErrors: Bool
+    ) async {
+        if let index = items.firstIndex(where: { $0.recordID == recordID }) {
+            items[index].watchedEpisodes.formUnion(adding)
+            items[index].watchedEpisodes.subtract(removing)
+        }
+        let previous = episodePushes[recordID]
+        let push = Task { @MainActor in
+            await previous?.value
+            do {
+                try await SharedListManager.updateWatchedEpisodes(recordID, adding: adding, removing: removing)
+            } catch where reportsErrors {
+                errorMessage = SharedListError.message(for: error)
+            } catch {}
+        }
+        episodePushes[recordID] = push
+        await push.value
+    }
+
+    /// Episodes ticked off before episode sharing existed — or while this
+    /// device was offline — only live on this device. Sends any the shared
+    /// record is missing. Quiet on failure: it runs on every refresh and
+    /// will try again next time.
+    @MainActor
+    private func backfillWatchedEpisodes(context: ModelContext) async {
+        for item in items where item.kind == .tv {
+            let id = item.tmdbID
+            let descriptor = FetchDescriptor<PendingEpisode>(
+                predicate: #Predicate { $0.showID == id && $0.watched == true }
+            )
+            let local = Set(((try? context.fetch(descriptor)) ?? []).map {
+                SharedItem.episodeKey(season: $0.seasonNumber, episode: $0.episodeNumber)
+            })
+            let missing = local.subtracting(item.watchedEpisodes)
+            guard !missing.isEmpty else { continue }
+            await pushWatchedEpisodes(item.recordID, adding: missing, removing: [], reportsErrors: false)
+        }
     }
 
     /// Same idea as `syncWatched`, for a show's day offset. TV only — movies
