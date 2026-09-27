@@ -160,6 +160,27 @@ enum SharedListManager {
         try await saveChangedKeys(record, in: context.database)
     }
 
+    /// Adds and removes episode keys on a show's shared record. Re-reads the
+    /// record first and edits that, rather than writing this device's copy,
+    /// so an episode a housemate marked in the meantime isn't dropped.
+    static func updateWatchedEpisodes(
+        _ recordID: CKRecord.ID,
+        adding: Set<String>,
+        removing: Set<String>
+    ) async throws {
+        let context = try await resolveContext()
+        let record = try await context.database.record(for: recordID)
+        var keys = Set((record[SharedItem.Field.watchedEpisodes] as? [String]) ?? [])
+        keys.formUnion(adding)
+        keys.subtract(removing)
+        if keys.isEmpty {
+            record[SharedItem.Field.watchedEpisodes] = nil
+        } else {
+            record[SharedItem.Field.watchedEpisodes] = keys.sorted() as CKRecordValue
+        }
+        try await saveChangedKeys(record, in: context.database)
+    }
+
     /// TV only. Whoever last changed it wins for the whole household — the
     /// same broadcast delay usually applies to everyone watching it there.
     static func setDayOffset(_ item: SharedItem, dayOffset: Int) async throws {

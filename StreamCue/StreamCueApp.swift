@@ -60,6 +60,7 @@ struct RootView: View {
     // a share is accepted — see `SharedListStore.shared`.
     @State private var sharedList = SharedListStore.shared
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Drives the tab badge — same filter the Ready to watch section uses.
     @Query(filter: #Predicate<PendingEpisode> { !$0.watched && !$0.dismissed })
@@ -84,6 +85,12 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .environment(sharedList)
         .task { await sharedList.refresh(context: context) }
+        // Also on every return to the app, so what a housemate watched shows
+        // up without having to quit and relaunch.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !sharedList.isLoading else { return }
+            Task { await sharedList.refresh(context: context) }
+        }
         .alert(
             "Household list error",
             isPresented: Binding(

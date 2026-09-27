@@ -361,6 +361,10 @@ struct ShowDetailView: View {
     /// re-derives the show's caught-up flag the same way the Shows tab does:
     /// caught up once nothing it aired is still outstanding.
     private func setWatched(_ episode: PendingEpisode, _ watched: Bool) {
+        if episode.watched != watched {
+            let (season, number) = (episode.seasonNumber, episode.episodeNumber)
+            Task { await sharedList.syncEpisode(showID: show.tmdbID, season: season, episode: number, watched: watched) }
+        }
         episode.watched = watched
         episode.dismissed = false
         let outstanding = !watched || episodes.contains {

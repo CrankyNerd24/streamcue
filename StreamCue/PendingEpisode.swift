@@ -78,6 +78,9 @@ enum EpisodeSync {
 
         let cutoff = Date().addingTimeInterval(-window)
         var insertedNew = false
+        // Episodes the household already marked watched come in watched, so
+        // they never land in Ready to watch here.
+        let sharedWatched = SharedListStore.shared.item(tmdbID: show.tmdbID, kind: .tv)?.watchedEpisodes ?? []
 
         for episode in season.episodes {
             guard let number = episode.episodeNumber,
@@ -100,7 +103,7 @@ enum EpisodeSync {
             let existing = (try? context.fetch(descriptor)) ?? []
             guard existing.isEmpty else { continue }
 
-            context.insert(PendingEpisode(
+            let record = PendingEpisode(
                 showID: show.tmdbID,
                 showName: show.name,
                 posterPath: show.posterPath,
@@ -108,15 +111,44 @@ enum EpisodeSync {
                 episodeNumber: number,
                 title: episode.name,
                 airDate: airDate
-            ))
-            insertedNew = true
+            )
+            if sharedWatched.contains(SharedItem.episodeKey(season: seasonNumber, episode: number)) {
+                record.watched = true
+            } else {
+                insertedNew = true
+            }
+            context.insert(record)
         }
 
         // A newly aired episode un-catches-you-up — "watched" for a show
-        // means caught up as of now, not caught up forever.
+        // means caught up as of now, not caught up forever. One someone else
+        // in the household already watched doesn't count.
         if insertedNew && show.watched {
             show.watched = false
             await SharedListStore.shared.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: false)
+        }
+    }
+
+    /// Marks this device's copies of the household's watched episodes as
+    /// watched, then catches the show up if that leaves nothing outstanding.
+    /// Watched wins, like the show-level flag: this never un-watches
+    /// anything, and leaves an episode you dismissed as it is.
+    static func applySharedWatched(_ keys: Set<String>, to show: TrackedShow, context: ModelContext) {
+        guard !keys.isEmpty else { return }
+        let id = show.tmdbID
+        let descriptor = FetchDescriptor<PendingEpisode>(predicate: #Predicate { $0.showID == id })
+        let episodes = (try? context.fetch(descriptor)) ?? []
+
+        var changed = false
+        for episode in episodes where !episode.watched && !episode.dismissed {
+            guard keys.contains(SharedItem.episodeKey(season: episode.seasonNumber, episode: episode.episodeNumber)) else { continue }
+            episode.watched = true
+            changed = true
+        }
+
+        let outstanding = episodes.contains { !$0.watched && !$0.dismissed }
+        if changed && !outstanding && !show.watched {
+            show.watched = true
         }
     }
 
