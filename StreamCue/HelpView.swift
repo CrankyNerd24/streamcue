@@ -96,6 +96,25 @@ struct HelpView: View {
             )
         ]),
 
+        Topic(name: "Household list", entries: [
+            Entry(
+                question: "How do I share a list with someone?",
+                answer: "Open Settings and tap Invite to household list, then send the link to whoever you want to share with. They open it on their iPhone, signed into their own iCloud, and they're in. Only the person who created the list can invite others."
+            ),
+            Entry(
+                question: "What gets shared?",
+                answer: "Only what you put on it — tap Add to household list on a show or film, or use Add all to household list in the menu. Everything on the list turns up in everyone's own list automatically. Films marked watched, episodes marked watched and a show's day offset are shared too. Dismissed episodes, alerts, reminders and your services stay your own."
+            ),
+            Entry(
+                question: "What happens if I remove something?",
+                answer: "Your list and the household list are separate copies. Removing a show from your own list leaves it on the household list, and it won't come back to yours on its own — it goes into Not interested in Settings, where you can swipe it back. Removing it from the household list doesn't take it off anyone's own list."
+            ),
+            Entry(
+                question: "Something my partner watched still shows for me.",
+                answer: "The household list is checked each time you open or return to the app, so switch away and back. You both need the latest version. Undoing a watched episode only undoes it for you — it stays watched for everyone else."
+            )
+        ]),
+
         Topic(name: "Data and refreshing", entries: [
             Entry(
                 question: "How often does it update?",
@@ -103,7 +122,7 @@ struct HelpView: View {
             ),
             Entry(
                 question: "Does it update when the app is closed?",
-                answer: "It asks iOS to wake it about once a week to check air dates and rebuild alerts. iOS decides whether to actually run it, based on how often you use the app, your battery and your connection — so treat it as a bonus rather than something to rely on. Opening the app always refreshes."
+                answer: "It asks iOS to wake it about once a night to check air dates, pick up newly aired episodes and rebuild alerts and reminders. iOS decides whether to actually run it, based on how often you use the app, your battery and your connection — so treat it as a bonus rather than something to rely on. Opening the app always refreshes."
             ),
             Entry(
                 question: "Ratings are missing.",
@@ -111,7 +130,7 @@ struct HelpView: View {
             ),
             Entry(
                 question: "Where is my data kept?",
-                answer: "On this device and in your own iCloud account, so your list stays in step across your devices. There's no account to create and nothing is sent anywhere else — not to us, not to TMDB. Signing out of iCloud, or turning iCloud off for this app in Settings, leaves it working on the device alone."
+                answer: "On this device and in your own iCloud account, so your list stays in step across your devices. There's no account to create and nothing is sent anywhere else — not to us, not to TMDB. Signing out of iCloud, or turning iCloud off for this app in Settings, leaves it working on the device alone. A household list is kept in the iCloud of whoever created it and shared only with the people they invite."
             ),
             Entry(
                 question: "My other device is out of date.",
