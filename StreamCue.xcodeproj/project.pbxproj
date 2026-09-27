@@ -132,6 +132,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		043C8A6B3059D9A000750FFA /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -145,7 +146,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert INFO_PLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nGIT_HASH=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || echo \"unknown\")\n/usr/libexec/PlistBuddy -c \"Add :GitCommitHash string ${GIT_HASH}\" \"${INFO_PLIST}\" 2>/dev/null || \\\n/usr/libexec/PlistBuddy -c \"Set :GitCommitHash ${GIT_HASH}\" \"${INFO_PLIST}\"its path.\n";
+			shellScript = "# Stamps the current commit into the built Info.plist as GitCommitHash,\n# which Help shows next to the version.\nINFO_PLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nGIT_HASH=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || echo \"unknown\")\n/usr/libexec/PlistBuddy -c \"Set :GitCommitHash ${GIT_HASH}\" \"${INFO_PLIST}\" 2>/dev/null || \\\n/usr/libexec/PlistBuddy -c \"Add :GitCommitHash string ${GIT_HASH}\" \"${INFO_PLIST}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -294,6 +295,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreamCue/Info.plist;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -334,6 +336,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreamCue/Info.plist;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
