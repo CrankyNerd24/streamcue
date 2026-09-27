@@ -10,6 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Add a Share button to show and film pages and the preview sheet. It
   sends the title, where it's streaming and a link to its TMDB page
 
+## [2.3.20] - 2026-09-27
+
 - Bump marketing version to 2.3.20
 
 - Fix the build script that stamps the git commit into the version shown
