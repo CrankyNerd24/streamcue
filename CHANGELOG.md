@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.3.19
+
 - Episodes marked watched on a household show now clear from Ready to
   watch on everyone's device, and the household list refreshes each time
   you return to the app instead of only at launch
