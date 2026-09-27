@@ -313,6 +313,13 @@ struct ShowDetailView: View {
         .navigationTitle(show.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ShareTitleButton(share: TitleShare(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                free: show.freeOn,
+                subscription: show.subscriptionOn
+            ))
             Button {
                 Task { await refresh() }
             } label: {
