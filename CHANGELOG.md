@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.20] - 2026-09-27
+
 - Bump marketing version to 2.3.20
 
 - Fix the build script that stamps the git commit into the version shown
