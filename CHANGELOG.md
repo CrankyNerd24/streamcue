@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.19] - 2026-09-27
+
 - Bump marketing version to 2.3.19
 
 - Episodes marked watched on a household show now clear from Ready to
