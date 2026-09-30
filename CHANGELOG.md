@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Tapping a result in Add a show now opens a preview with its details and
+  where it streams, instead of adding it straight away
+
 ## [2.4.0] - 2026-09-27
 
 - Add a Household list section to Help, and correct Help to say
