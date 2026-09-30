@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.4.1
+
 - Tapping a result in Add a show now opens a preview with its details and
   where it streams, instead of adding it straight away
 
