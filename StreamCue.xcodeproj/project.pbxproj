@@ -293,9 +293,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = H47J9P9TQ3;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreamCue/Info.plist;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -334,9 +334,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = H47J9P9TQ3;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = StreamCue/Info.plist;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Adds a reminder for when a show you're tracking airs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

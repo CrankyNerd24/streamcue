@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Let Xcode sort the build settings
+
 ## [2.4.1] - 2026-09-30
 
 - Bump marketing version to 2.4.1
