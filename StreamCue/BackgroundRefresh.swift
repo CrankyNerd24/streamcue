@@ -25,7 +25,7 @@ enum BackgroundRefresh {
     }
 
     /// The same work the app does on open: refresh stale shows, record newly
-    /// aired episodes, tidy up, then rebuild alerts and reminders.
+    /// aired episodes, tidy up, then rebuild alerts, reminders and the badge.
     static func run(container: ModelContainer) async {
         let context = container.mainContext
 
@@ -45,14 +45,10 @@ enum BackgroundRefresh {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
 
-        await Notifications.reschedule(for: shows)
+        // Reminders first: a new one moves that show's badge time to its hour.
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
 
         try? context.save()
-
-        let pendingCount = (try? context.fetchCount(
-            FetchDescriptor<PendingEpisode>(predicate: #Predicate { !$0.watched && !$0.dismissed })
-        )) ?? 0
-        await Notifications.updateBadge(pendingCount)
     }
 }

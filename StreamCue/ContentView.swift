@@ -198,7 +198,11 @@ struct ContentView: View {
                 await autoRefresh()
             }
             .task { await AppUpdate.check() }
-            .task(id: pending.count) { await Notifications.updateBadge(pending.count) }
+            // Rebuilds alerts and the scheduled badge counts whenever Ready to
+            // watch or anything they're timed from changes.
+            .task(id: notificationInputs) {
+                await Notifications.reschedule(for: shows, context: context)
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
@@ -719,6 +723,14 @@ struct ContentView: View {
         }
     }
 
+    /// What `Notifications.reschedule` depends on. A show added, removed or
+    /// refreshed onto a new date changes this, as does Ready to watch.
+    private var notificationInputs: [String] {
+        ["\(pending.count)"] + shows.map {
+            "\($0.tmdbID)|\($0.effectiveAirDate?.timeIntervalSince1970 ?? 0)|\($0.reminderID ?? "")"
+        }
+    }
+
     private func refreshAll() async {
         isRefreshing = true
         for show in shows {
@@ -728,8 +740,8 @@ struct ContentView: View {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
         isRefreshing = false
-        await Notifications.reschedule(for: shows)
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
     }
 
     /// Runs when the app opens or returns to the foreground. Skips entirely if
@@ -753,8 +765,8 @@ struct ContentView: View {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
         isRefreshing = false
-        await Notifications.reschedule(for: shows)
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
     }
 }
 
@@ -1249,14 +1261,14 @@ struct AboutView: View {
                         notificationsEnabled = false
                         return
                     }
-                    await Notifications.reschedule(for: shows)
+                    await Notifications.reschedule(for: shows, context: context)
                 }
             }
             .onChange(of: notificationHour) { _, _ in
-                Task { await Notifications.reschedule(for: shows) }
+                Task { await Notifications.reschedule(for: shows, context: context) }
             }
             .onChange(of: privateNotifications) { _, _ in
-                Task { await Notifications.reschedule(for: shows) }
+                Task { await Notifications.reschedule(for: shows, context: context) }
             }
             .onChange(of: autoReminders) { _, enabled in
                 guard enabled else { return }

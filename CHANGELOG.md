@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- The app icon badge now goes up as each tracked episode airs without
+  opening the app: at your alert or reminder time, or 7pm if you have
+  neither. Before, it only updated when the app opened and refreshed
+
 - Let Xcode sort the build settings
 
 ## [2.4.1] - 2026-09-30

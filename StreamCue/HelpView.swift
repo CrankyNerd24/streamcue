@@ -84,7 +84,7 @@ struct HelpView: View {
             ),
             Entry(
                 question: "What's the number on the app icon?",
-                answer: "How many aired episodes are waiting in Ready to watch. Marking one watched or dismissing it brings the count down. The badge needs notification permission — if you declined that, iOS won't show it, though the number on the Shows tab still works."
+                answer: "How many aired episodes are waiting in Ready to watch. It goes up on its own as each episode airs, without opening the app: at your alert time if you have alerts or reminders on, otherwise at 7pm. Marking one watched or dismissing it brings the count down. The badge needs notification permission — if you declined that, iOS won't show it, though the number on the Shows tab still works."
             ),
             Entry(
                 question: "I turned alerts on but nothing happens.",

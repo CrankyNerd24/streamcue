@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import UserNotifications
 
 /// Local notifications for shows with a known air date. TMDB gives a date but
@@ -39,12 +40,9 @@ enum Notifications {
         }
     }
 
-    /// Number of episodes waiting on the app icon. Clears itself when the
-    /// count reaches zero. Requires notification permission — without it iOS
-    /// silently ignores the badge.
-    static func updateBadge(_ count: Int) async {
-        try? await UNUserNotificationCenter.current().setBadgeCount(max(0, count))
-    }
+    /// When the icon badge ticks up for an episode that has no alert or
+    /// reminder to go with it.
+    static let defaultBadgeHour = 19
 
     /// Keeps the stored toggle honest against the system's actual permission
     /// state. Nothing else notices when that drifts — a device-wide privacy
@@ -64,17 +62,30 @@ enum Notifications {
     }
 
     /// Clears everything pending and rebuilds from the current shows. Cheaper
-    /// than diffing, and the list is small.
-    static func reschedule(for shows: [TrackedShow]) async {
+    /// than diffing, and the list is small. Also owns the icon badge, so call
+    /// it whenever Ready to watch changes as well as when air dates do.
+    static func reschedule(for shows: [TrackedShow], context: ModelContext) async {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
 
-        guard isEnabled else { return }
+        let records = (try? context.fetch(FetchDescriptor<PendingEpisode>())) ?? []
+        let outstanding = records.filter { !$0.watched && !$0.dismissed }.count
+        // Without permission iOS silently ignores the badge.
+        try? await center.setBadgeCount(outstanding)
+
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized
                 || settings.authorizationStatus == .provisional else { return }
 
         let calendar = Calendar.current
+        await scheduleBadges(
+            for: shows,
+            records: records,
+            outstanding: outstanding,
+            calendar: calendar
+        )
+
+        guard isEnabled else { return }
 
         // Private mode collapses to one alert per day. Scheduling one per show
         // would otherwise stack identical anonymous notifications, which tells
@@ -133,8 +144,76 @@ enum Notifications {
         }
     }
 
-    /// The show's air date at the user's chosen hour, or nil if that's passed.
-    private static func fireDate(for show: TrackedShow, calendar: Calendar) -> Date? {
+    /// Silent, badge-only notifications that raise the icon count as each
+    /// tracked episode airs. The app can't run at a set time, so without these
+    /// the badge only caught up when you opened it. Each one carries the
+    /// running total: what's in Ready to watch now plus everything due to air
+    /// by then. Rebuilt whenever that list changes, so the totals stay right.
+    private static func scheduleBadges(
+        for shows: [TrackedShow],
+        records: [PendingEpisode],
+        outstanding: Int,
+        calendar: Calendar
+    ) async {
+        let center = UNUserNotificationCenter.current()
+        let times = shows.compactMap { badgeDate(for: $0, records: records, calendar: calendar) }
+        let counts = Dictionary(grouping: times, by: { $0 }).mapValues(\.count)
+
+        var total = outstanding
+        for time in counts.keys.sorted() {
+            // A newer rebuild has started; let it write the totals.
+            if Task.isCancelled { return }
+            total += counts[time] ?? 0
+
+            let content = UNMutableNotificationContent()
+            content.badge = NSNumber(value: total)
+
+            let request = UNNotificationRequest(
+                identifier: "badge-\(Int(time.timeIntervalSince1970))",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(
+                    dateMatching: calendar.dateComponents(
+                        [.year, .month, .day, .hour, .minute],
+                        from: time
+                    ),
+                    repeats: false
+                )
+            )
+            try? await center.add(request)
+        }
+    }
+
+    /// When a show's next episode should count on the badge: the time its
+    /// alert or reminder goes off, or `defaultBadgeHour` if it has neither.
+    /// Nil if that's passed, or if the episode is already recorded — it's in
+    /// the count (or was dealt with) already.
+    private static func badgeDate(
+        for show: TrackedShow,
+        records: [PendingEpisode],
+        calendar: Calendar
+    ) -> Date? {
+        guard let airDate = show.effectiveAirDate else { return nil }
+        let recorded = records.contains {
+            $0.showID == show.tmdbID
+                && $0.airDate.map { calendar.isDate($0, inSameDayAs: airDate) } == true
+        }
+        guard !recorded else { return nil }
+
+        // Alerts and reminders both go off at the notification hour.
+        let isScheduled = isEnabled || ReminderSync.isAutomatic || show.reminderID != nil
+        return fireDate(
+            for: show,
+            hour: isScheduled ? hour : defaultBadgeHour,
+            calendar: calendar
+        )
+    }
+
+    /// The show's air date at the given hour, or nil if that's passed.
+    private static func fireDate(
+        for show: TrackedShow,
+        hour: Int = Notifications.hour,
+        calendar: Calendar
+    ) -> Date? {
         guard let airDate = show.effectiveAirDate else { return nil }
         var components = calendar.dateComponents([.year, .month, .day], from: airDate)
         components.hour = hour
