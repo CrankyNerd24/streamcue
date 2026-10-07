@@ -93,7 +93,7 @@ enum Notifications {
         if isPrivate {
             var counts: [DateComponents: Int] = [:]
             for show in shows {
-                guard let fire = fireDate(for: show, calendar: calendar) else { continue }
+                guard let fire = fireDate(for: show, hour: hour, calendar: calendar) else { continue }
                 counts[calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire),
                        default: 0] += 1
             }
@@ -120,7 +120,7 @@ enum Notifications {
         }
 
         for show in shows {
-            guard let fire = fireDate(for: show, calendar: calendar) else { continue }
+            guard let fire = fireDate(for: show, hour: hour, calendar: calendar) else { continue }
 
             let content = UNMutableNotificationContent()
             content.title = show.name
@@ -211,7 +211,7 @@ enum Notifications {
     /// The show's air date at the given hour, or nil if that's passed.
     private static func fireDate(
         for show: TrackedShow,
-        hour: Int = Notifications.hour,
+        hour: Int,
         calendar: Calendar
     ) -> Date? {
         guard let airDate = show.effectiveAirDate else { return nil }
