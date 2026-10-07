@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-10-07
+
 - Bump marketing version to 2.4.2
 
 - The app icon badge now goes up as each tracked episode airs without
