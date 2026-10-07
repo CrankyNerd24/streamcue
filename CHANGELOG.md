@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Bump marketing version to 2.4.2
+
 - The app icon badge now goes up as each tracked episode airs without
   opening the app: at your alert or reminder time, or 7pm if you have
   neither. Before, it only updated when the app opened and refreshed
