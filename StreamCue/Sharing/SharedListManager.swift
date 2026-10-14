@@ -68,14 +68,30 @@ enum SharedListManager {
             return Context(database: container.sharedCloudDatabase, zoneID: zone.zoneID)
         }
 
+        // Most users never create a household of their own, so the lookup
+        // below is otherwise guaranteed to fail (zone_not_found) on every
+        // launch for nearly everyone — skip it entirely unless this device
+        // is actually known to have created its own zone.
+        guard UserDefaults.standard.bool(forKey: HouseholdShareManager.ownsZoneDefaultsKey) else {
+            throw SharedListError.notSetUp
+        }
+
         let ownedZoneID = CKRecordZone.ID(
             zoneName: HouseholdShareManager.zoneName,
             ownerName: CKCurrentUserDefaultName
         )
-        guard (try? await container.privateCloudDatabase.recordZone(for: ownedZoneID)) != nil else {
+        do {
+            _ = try await container.privateCloudDatabase.recordZone(for: ownedZoneID)
+            return Context(database: container.privateCloudDatabase, zoneID: ownedZoneID)
+        } catch let error as CKError where error.code == .zoneNotFound {
+            // The cached flag said this device owns a zone, but it's gone
+            // server-side (deleted directly, or a reset) — stop repeating
+            // this failing lookup on every future launch.
+            UserDefaults.standard.set(false, forKey: HouseholdShareManager.ownsZoneDefaultsKey)
+            throw SharedListError.notSetUp
+        } catch {
             throw SharedListError.notSetUp
         }
-        return Context(database: container.privateCloudDatabase, zoneID: ownedZoneID)
     }
 
     private static func sharedHouseholdZone() async throws -> CKRecordZone? {

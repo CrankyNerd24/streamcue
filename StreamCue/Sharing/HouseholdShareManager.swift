@@ -29,6 +29,12 @@ enum HouseholdShareManager {
     static let rootRecordName = "HouseholdRoot"
     private static let rootRecordType = "HouseholdRoot"
 
+    /// Set once this device has actually created its own zone, so
+    /// `SharedListManager` can skip a lookup that's otherwise guaranteed to
+    /// fail — and show up in CloudKit Telemetry as zone_not_found — for the
+    /// vast majority of users who've never touched household sharing.
+    static let ownsZoneDefaultsKey = "household.ownsZone"
+
     private static var container: CKContainer { .default() }
     private static var privateDatabase: CKDatabase { container.privateCloudDatabase }
 
@@ -75,6 +81,7 @@ enum HouseholdShareManager {
         // Saving a zone that already exists is a harmless no-op — CloudKit
         // doesn't error on it — so this doubles as "create if needed".
         _ = try await privateDatabase.modifyRecordZones(saving: [zone], deleting: [])
+        UserDefaults.standard.set(true, forKey: ownsZoneDefaultsKey)
     }
 
     private static func fetchRootRecord() async throws -> CKRecord? {
