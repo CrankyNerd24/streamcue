@@ -121,7 +121,13 @@ extension TrackedShow {
         nextEpisodeLabel = details.nextEpisodeToAir?.label
         nextAirDate = TMDBDate.parse(details.nextEpisodeToAir?.airDate)
         lastEpisodeLabel = details.lastEpisodeToAir?.label
-        lastAiredSeason = details.lastEpisodeToAir?.seasonNumber
+        // Not just lastEpisodeToAir: TMDB can take a day to roll that field
+        // over to a new season, while nextEpisodeToAir (scheduled, not
+        // broadcast-dependent) already reflects it — so a multi-episode
+        // premiere stays invisible to EpisodeSync until the lag clears.
+        lastAiredSeason = [details.lastEpisodeToAir?.seasonNumber, details.nextEpisodeToAir?.seasonNumber]
+            .compactMap { $0 }
+            .max()
         subscriptionOn = availability.subscription
         freeOn = availability.free
         rentOrBuyOn = availability.rentOrBuy
