@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-10-14
+
+- Fix episodes from a multi-episode premiere not showing in Ready to watch
+  until the day after they air
+
+- Bump marketing version to 2.4.3
+
 ## [2.4.2] - 2026-10-07
 
 - Bump marketing version to 2.4.2
