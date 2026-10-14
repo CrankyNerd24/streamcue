@@ -10,12 +10,22 @@ final class TrackedShow {
     var name: String = ""
     var posterPath: String?
     var status: String = ""
+    /// Manual, independent of per-episode tracking — same as TrackedMovie's
+    /// watched. It's what the household list's shared watched flag mirrors.
+    var watched: Bool = false
     var nextEpisodeLabel: String?
     var nextAirDate: Date?
     var lastEpisodeLabel: String?
     var subscriptionOn: [String] = []
     var freeOn: [String] = []
     var rentOrBuyOn: [String] = []
+    /// JustWatch page for this title in the current region — where "where to
+    /// watch" actually sends you when you tap it.
+    var watchLink: String?
+    /// Per-show "Watch on" override — see `StreamingServices.Override`.
+    /// Nil name means automatic.
+    var watchOnName: String?
+    var watchOnLink: String?
     var addedAt: Date = Date.now
     var lastRefreshed: Date?
     var reminderID: String?
@@ -46,6 +56,7 @@ final class TrackedShow {
         self.name = name
         self.posterPath = posterPath
         self.status = ""
+        self.watched = false
         self.subscriptionOn = []
         self.freeOn = []
         self.rentOrBuyOn = []
@@ -54,6 +65,23 @@ final class TrackedShow {
 }
 
 extension TrackedShow {
+    var watchOnOverride: StreamingServices.Override? {
+        guard let watchOnName, !watchOnName.isEmpty else { return nil }
+        return StreamingServices.Override(name: watchOnName, link: watchOnLink)
+    }
+
+    /// Where Watch now goes for this show, honouring the override.
+    func watchNowDestination(mySubscriptions: Set<String>) -> StreamingServices.Destination? {
+        StreamingServices.destination(
+            free: freeOn,
+            subscription: subscriptionOn,
+            rentOrBuy: rentOrBuyOn,
+            mySubscriptions: mySubscriptions,
+            watchLink: watchLink,
+            override: watchOnOverride
+        )
+    }
+
     /// The air date as it applies to you. Every grouping, label, notification
     /// and reminder reads this rather than `nextAirDate`, so a shifted show
     /// can't say Thursday in one place and Wednesday in another.
@@ -131,6 +159,7 @@ extension TrackedShow {
         subscriptionOn = availability.subscription
         freeOn = availability.free
         rentOrBuyOn = availability.rentOrBuy
+        watchLink = availability.link
         lastRefreshed = .now
 
         // Ratings are a bonus — never let a failure here break the refresh.

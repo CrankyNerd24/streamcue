@@ -20,6 +20,13 @@ struct SharedItem: Identifiable, Equatable {
         static let posterPath = "posterPath"
         static let watched = "watched"
         static let addedAt = "addedAt"
+        static let dayOffset = "dayOffset"
+        static let watchedEpisodes = "watchedEpisodes"
+    }
+
+    /// "season-episode", e.g. "2-5" — the show is implied by the record.
+    static func episodeKey(season: Int, episode: Int) -> String {
+        "\(season)-\(episode)"
     }
 
     var recordID: CKRecord.ID
@@ -29,6 +36,13 @@ struct SharedItem: Identifiable, Equatable {
     var posterPath: String?
     var watched: Bool
     var addedAt: Date
+    /// TV only — how many days a show reaches this household later than the
+    /// original broadcast. Meaningless for a film, always 0 there.
+    var dayOffset: Int
+    /// TV only — episodes anyone in the household has marked watched, as
+    /// `episodeKey`s. Only ever grows from a watch: undoing one on your own
+    /// device takes it off here but doesn't un-watch it for anyone else.
+    var watchedEpisodes: Set<String> = []
 
     var id: CKRecord.ID { recordID }
 }
@@ -50,6 +64,11 @@ extension SharedItem {
         self.posterPath = record[Field.posterPath] as? String
         self.watched = ((record[Field.watched] as? Int) ?? 0) != 0
         self.addedAt = addedAt
+        // Older records predate this field — 0 (no offset) is the right
+        // default for them, same as a freshly tracked show.
+        self.dayOffset = (record[Field.dayOffset] as? Int) ?? 0
+        // Same for this one — older records have no watched episodes.
+        self.watchedEpisodes = Set((record[Field.watchedEpisodes] as? [String]) ?? [])
     }
 
     func apply(to record: CKRecord) {
@@ -59,5 +78,9 @@ extension SharedItem {
         record[Field.posterPath] = posterPath as CKRecordValue?
         record[Field.watched] = (watched ? 1 : 0) as CKRecordValue
         record[Field.addedAt] = addedAt as CKRecordValue
+        record[Field.dayOffset] = dayOffset as CKRecordValue
+        if !watchedEpisodes.isEmpty {
+            record[Field.watchedEpisodes] = watchedEpisodes.sorted() as CKRecordValue
+        }
     }
 }

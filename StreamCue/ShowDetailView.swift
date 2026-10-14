@@ -3,12 +3,77 @@ import SwiftData
 
 struct ShowDetailView: View {
     @Bindable var show: TrackedShow
+    /// This show's recorded episodes, actioned or not, newest first — so a
+    /// watched or dismissed one can be put back in Ready to watch.
+    @Query private var episodes: [PendingEpisode]
+
+    init(show: TrackedShow) {
+        _show = Bindable(show)
+        let id = show.tmdbID
+        _episodes = Query(
+            filter: #Predicate<PendingEpisode> { $0.showID == id },
+            sort: \PendingEpisode.airDate,
+            order: .reverse
+        )
+    }
 
     @State private var isRefreshing = false
     @State private var isWorkingOnReminder = false
     @State private var isAddingToHousehold = false
     @State private var cast: [CastMember] = []
     @State private var errorMessage: String?
+    @State private var isShowingWatchNowSheet = false
+    @State private var isEditingCustomWatchOn = false
+    @State private var draftWatchOnName = ""
+    @State private var draftWatchOnLink = ""
+    @Environment(\.openURL) private var openURL
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+    /// Starts collapsed every time a show opens — it's a history for the
+    /// occasional undo, not something to scroll past on every visit.
+    @State private var isRecentEpisodesExpanded = false
+
+    private var mySubscriptions: Set<String> {
+        Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+    }
+
+    private var watchNowDestination: StreamingServices.Destination? {
+        show.watchNowDestination(mySubscriptions: mySubscriptions)
+    }
+
+    private static let customWatchOnTag = "\u{1}custom"
+
+    /// The subscribed services, alphabetical, for the Watch on menu.
+    private var subscribedNames: [String] {
+        mySubscriptions.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// A picked subscribed service is stored as just its name; anything with
+    /// its own link (or a name that's no longer subscribed) is "custom".
+    private var isCustomWatchOn: Bool {
+        guard let name = show.watchOnName else { return false }
+        return show.watchOnLink != nil || !mySubscriptions.contains(name)
+    }
+
+    private var watchOnSelection: Binding<String> {
+        Binding(
+            get: {
+                guard let name = show.watchOnName else { return "" }
+                return isCustomWatchOn ? Self.customWatchOnTag : name
+            },
+            set: { tag in
+                switch tag {
+                case "":
+                    show.watchOnName = nil
+                    show.watchOnLink = nil
+                case Self.customWatchOnTag:
+                    break
+                default:
+                    show.watchOnName = tag
+                    show.watchOnLink = nil
+                }
+            }
+        )
+    }
 
     @Environment(SharedListStore.self) private var sharedList
 
@@ -81,6 +146,9 @@ struct ShowDetailView: View {
                             .monospacedDigit()
                     }
                 }
+                .onChange(of: show.dayOffset) { _, dayOffset in
+                    Task { await sharedList.syncDayOffset(tmdbID: show.tmdbID, dayOffset: dayOffset) }
+                }
 
                 if let last = show.lastEpisodeLabel {
                     LabeledContent("Last aired") {
@@ -93,10 +161,81 @@ struct ShowDetailView: View {
                 Text("Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.")
             }
 
+            if !episodes.isEmpty {
+                Section {
+                    if isRecentEpisodesExpanded {
+                        ForEach(episodes) { episode in
+                            EpisodeStatusRow(episode: episode) { watched in
+                                setWatched(episode, watched)
+                            }
+                        }
+                    }
+                } header: {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isRecentEpisodesExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text("Recent episodes")
+                            Text("\(episodes.count)")
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.tertiary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .rotationEffect(.degrees(isRecentEpisodesExpanded ? 90 : 0))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(isRecentEpisodesExpanded ? "Collapses the list" : "Expands the list")
+                } footer: {
+                    if isRecentEpisodesExpanded {
+                        Text("Undo puts a watched or dismissed episode back in Ready to watch.")
+                    }
+                }
+            }
+
             if !cast.isEmpty {
                 Section("Cast") {
                     CastStrip(cast: cast)
                 }
+            }
+
+            Section {
+                if let watchNowDestination {
+                    Button {
+                        switch watchNowDestination.presentation {
+                        case .app:
+                            openURL(watchNowDestination.url)
+                        case .web:
+                            isShowingWatchNowSheet = true
+                        }
+                    } label: {
+                        Label(watchNowDestination.label, systemImage: "play.rectangle.fill")
+                    }
+                    .tint(watchNowDestination.kind == .free ? Theme.free : nil)
+                }
+
+                Picker("Watch on", selection: watchOnSelection) {
+                    Text("Automatic").tag("")
+                    ForEach(subscribedNames, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                    if isCustomWatchOn, let name = show.watchOnName {
+                        Text(name).tag(Self.customWatchOnTag)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Button(isCustomWatchOn ? "Edit custom link…" : "Custom link…") {
+                    draftWatchOnName = isCustomWatchOn ? (show.watchOnName ?? "") : ""
+                    draftWatchOnLink = show.watchOnLink ?? ""
+                    isEditingCustomWatchOn = true
+                }
+            } footer: {
+                Text("Automatic picks a service you've ticked on the Services tab first. Use a custom link for a service TMDB doesn't list.")
             }
 
             if !show.freeOn.isEmpty {
@@ -174,6 +313,13 @@ struct ShowDetailView: View {
         .navigationTitle(show.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ShareTitleButton(share: TitleShare(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                free: show.freeOn,
+                subscription: show.subscriptionOn
+            ))
             Button {
                 Task { await refresh() }
             } label: {
@@ -194,6 +340,61 @@ struct ShowDetailView: View {
                 kind: .tv
             )) ?? []
         }
+        .sheet(isPresented: $isShowingWatchNowSheet) {
+            if let watchNowDestination {
+                SafariView(url: watchNowDestination.url)
+            }
+        }
+        .alert("Custom link", isPresented: $isEditingCustomWatchOn) {
+            TextField("Name, e.g. Dropout", text: $draftWatchOnName)
+            TextField("Link, e.g. dropout.tv", text: $draftWatchOnLink)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Save", action: saveCustomWatchOn)
+            if isCustomWatchOn {
+                Button("Remove", role: .destructive) {
+                    show.watchOnName = nil
+                    show.watchOnLink = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Watch now opens this instead — the service's app if it's installed, otherwise its website.")
+        }
+    }
+
+    /// Marks one episode watched, or undoes a watched or dismissed one, then
+    /// re-derives the show's caught-up flag the same way the Shows tab does:
+    /// caught up once nothing it aired is still outstanding.
+    private func setWatched(_ episode: PendingEpisode, _ watched: Bool) {
+        if episode.watched != watched {
+            let (season, number) = (episode.seasonNumber, episode.episodeNumber)
+            Task { await sharedList.syncEpisode(showID: show.tmdbID, season: season, episode: number, watched: watched) }
+        }
+        episode.watched = watched
+        episode.dismissed = false
+        let outstanding = !watched || episodes.contains {
+            $0.id != episode.id && !$0.watched && !$0.dismissed
+        }
+        guard show.watched == outstanding else { return }
+        show.watched = !outstanding
+        let caughtUp = show.watched
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: caughtUp) }
+    }
+
+    /// Refuses a link that doesn't parse rather than saving something Watch
+    /// now can't open. A blank name falls back to the link's host.
+    private func saveCustomWatchOn() {
+        guard let url = StreamingServices.normalizedLink(draftWatchOnLink) else {
+            errorMessage = "That link doesn't look right — try something like dropout.tv."
+            return
+        }
+        errorMessage = nil
+        let typedName = draftWatchOnName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = url.host()?.replacingOccurrences(of: "www.", with: "") ?? url.absoluteString
+        show.watchOnName = typedName.isEmpty ? host : typedName
+        show.watchOnLink = url.absoluteString
     }
 
     private var offsetLabel: String {
@@ -259,9 +460,54 @@ struct ShowDetailView: View {
                 tmdbID: show.tmdbID,
                 kind: .tv,
                 title: show.name,
-                posterPath: show.posterPath
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
             )
         }
+    }
+}
+
+/// One recorded episode with its state and the action that flips it:
+/// mark an outstanding one watched, or undo a watched or dismissed one.
+private struct EpisodeStatusRow: View {
+    let episode: PendingEpisode
+    let setWatched: (Bool) -> Void
+
+    private var isOutstanding: Bool { !episode.watched && !episode.dismissed }
+
+    private var status: String {
+        if episode.watched { return "Watched" }
+        if episode.dismissed { return "Dismissed" }
+        return episode.airedSummary
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(episode.label)
+                    .lineLimit(1)
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(episode.watched ? Theme.free : Theme.tertiary)
+            }
+            Spacer(minLength: 4)
+            if isOutstanding {
+                Button {
+                    setWatched(true)
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                        .font(.title3)
+                        .foregroundStyle(Theme.free)
+                }
+                .accessibilityLabel("Mark watched")
+            } else {
+                Button("Undo") {
+                    setWatched(false)
+                }
+                .accessibilityLabel(episode.watched ? "Mark unwatched" : "Restore")
+            }
+        }
+        .buttonStyle(.borderless)
     }
 }
 

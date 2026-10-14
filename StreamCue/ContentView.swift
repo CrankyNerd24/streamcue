@@ -10,6 +10,8 @@ struct ContentView: View {
         sort: \PendingEpisode.airDate,
         order: .reverse
     ) private var pending: [PendingEpisode]
+    /// Every recorded episode, watched and dismissed included — see `dated`.
+    @Query private var episodeRecords: [PendingEpisode]
 
     @State private var isAdding = false
     @State private var isShowingAbout = false
@@ -21,6 +23,8 @@ struct ContentView: View {
     @State private var reminderResult: String?
     @State private var isConfirmingAddAllToHousehold = false
     @State private var isAddingAllToHousehold = false
+    /// The episode just ticked off in Ready to watch, for the Undo banner.
+    @State private var lastActioned: ActionedEpisode?
 
     @Environment(SharedListStore.self) private var sharedList
 
@@ -28,8 +32,25 @@ struct ContentView: View {
     @AppStorage("freeOnly") private var freeOnly = false
     @AppStorage("lastAutoRefresh") private var lastAutoRefresh: Double = 0
     @AppStorage("readyExpanded") private var isReadyExpanded = true
+    /// Titles of the show sections the user has collapsed, newline-separated.
+    /// Stored by exclusion so every section starts out expanded.
+    @AppStorage("collapsedShowSections") private var collapsedSectionsRaw = ""
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+
+    @AppStorage(AppUpdate.latestVersionKey) private var latestStoreVersion = ""
+    @AppStorage(AppUpdate.storeURLKey) private var storeURLRaw = ""
+    @AppStorage(AppUpdate.dismissedVersionKey) private var dismissedUpdateVersion = ""
+
+    /// A store release newer than this build that hasn't been dismissed.
+    private var availableUpdate: (version: String, url: URL)? {
+        guard !latestStoreVersion.isEmpty,
+              latestStoreVersion != dismissedUpdateVersion,
+              AppUpdate.isNewer(latestStoreVersion, than: AppUpdate.currentVersion),
+              let url = URL(string: storeURLRaw) else { return nil }
+        return (latestStoreVersion, url)
+    }
 
     private var selectedServices: Set<String> {
         Set(serviceFilterRaw.split(separator: "\n").map(String.init))
@@ -52,9 +73,30 @@ struct ContentView: View {
         }
     }
 
-    /// Everything with a known date, soonest first.
+    /// Everything with a known date, soonest first — except a show already
+    /// sitting in Ready to watch. Once an aired episode needs action, that
+    /// card is the one place for it; a hero/upcoming row for the same show
+    /// would just be a redundant reminder of something already surfaced.
+    ///
+    /// Also skips a show whose next episode has already been recorded and
+    /// then marked watched or dismissed. TMDB keeps reporting today's
+    /// episode as "next" for the rest of its air date, so without this
+    /// ticking it off in Ready to watch drops it straight back into Airing
+    /// today.
     private var dated: [TrackedShow] {
-        visible.filter { $0.effectiveAirDate != nil }
+        let readyShowIDs = Set(pending.map(\.showID))
+        var latestRecorded: [Int: Date] = [:]
+        for record in episodeRecords {
+            guard let airDate = record.airDate else { continue }
+            latestRecorded[record.showID] = max(latestRecorded[record.showID] ?? .distantPast, airDate)
+        }
+        let calendar = Calendar.current
+        return visible
+            .filter { show in
+                guard let date = show.effectiveAirDate, !readyShowIDs.contains(show.tmdbID) else { return false }
+                guard let recorded = latestRecorded[show.tmdbID] else { return true }
+                return calendar.startOfDay(for: recorded) < calendar.startOfDay(for: date)
+            }
             .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
 
@@ -101,6 +143,18 @@ struct ContentView: View {
                     list
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if let lastActioned {
+                    undoBanner(lastActioned)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: lastActioned?.id)
+            .task(id: lastActioned?.id) {
+                guard lastActioned != nil else { return }
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                lastActioned = nil
+            }
             .background(Theme.background)
             .navigationTitle("Shows")
             .toolbar { toolbar }
@@ -143,7 +197,12 @@ struct ContentView: View {
                 await Notifications.syncEnabledState()
                 await autoRefresh()
             }
-            .task(id: pending.count) { await Notifications.updateBadge(pending.count) }
+            .task { await AppUpdate.check() }
+            // Rebuilds alerts and the scheduled badge counts whenever Ready to
+            // watch or anything they're timed from changes.
+            .task(id: notificationInputs) {
+                await Notifications.reschedule(for: shows, context: context)
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
@@ -151,6 +210,7 @@ struct ContentView: View {
                         await Notifications.syncEnabledState()
                         await autoRefresh()
                     }
+                    Task { await AppUpdate.check() }
                 case .background:
                     BackgroundRefresh.schedule()
                 default:
@@ -259,6 +319,17 @@ struct ContentView: View {
 
     private var list: some View {
         List {
+            if let availableUpdate {
+                UpdateCard(
+                    version: availableUpdate.version,
+                    onUpdate: { openURL(availableUpdate.url) },
+                    onDismiss: {
+                        withAnimation { dismissedUpdateVersion = availableUpdate.version }
+                    }
+                )
+                .plainRow()
+            }
+
             if isFiltering {
                 filterStrip
             }
@@ -274,11 +345,13 @@ struct ContentView: View {
             }
 
             if !airingToday.isEmpty {
-                header("Airing today", accented: true)
-                ForEach(airingToday) { show in
-                    heroRow(show)
+                header("Airing today", count: airingToday.count, accented: true)
+                if isExpanded("Airing today") {
+                    ForEach(airingToday) { show in
+                        heroRow(show)
+                    }
+                    .onDelete { remove(airingToday, at: $0) }
                 }
-                .onDelete { remove(airingToday, at: $0) }
             }
 
             readySection
@@ -320,23 +393,53 @@ struct ContentView: View {
 
     // MARK: - Pieces
 
+    private var collapsedSections: Set<String> {
+        Set(collapsedSectionsRaw.split(separator: "\n").map(String.init))
+    }
+
+    private func isExpanded(_ title: String) -> Bool {
+        !collapsedSections.contains(title)
+    }
+
+    /// Tappable section header, same look as the Ready to watch one: a
+    /// chevron that turns to show whether the section is open, then the
+    /// title and how many shows are in it.
     private func header(
         _ title: String,
+        count: Int,
         accented: Bool = false,
         color: Color = Theme.tonight
     ) -> some View {
-        HStack(spacing: 6) {
-            if accented {
-                Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
+        let expanded = isExpanded(title)
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                var collapsed = collapsedSections
+                if expanded {
+                    collapsed.insert(title)
+                } else {
+                    collapsed.remove(title)
+                }
+                collapsedSectionsRaw = collapsed.sorted().joined(separator: "\n")
             }
-            Text(title)
-                .font(.caption)
-                .kerning(0.5)
-                .foregroundStyle(accented ? color : Theme.secondary)
-            Spacer()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accented ? color : Theme.secondary)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                Text(title)
+                    .font(.caption)
+                    .kerning(0.5)
+                    .foregroundStyle(accented ? color : Theme.secondary)
+                Text("\(count)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.tertiary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.top, 14)
         .padding(.bottom, 2)
         .plainRow()
@@ -386,8 +489,24 @@ struct ContentView: View {
                 ForEach(pending) { episode in
                     PendingEpisodeCard(
                         episode: episode,
-                        onWatched: { episode.watched = true },
-                        onDismiss: { episode.dismissed = true }
+                        show: shows.first { $0.tmdbID == episode.showID },
+                        onWatched: {
+                            episode.watched = true
+                            syncEpisode(episode, watched: true)
+                            lastActioned = ActionedEpisode(
+                                episode: episode,
+                                watched: true,
+                                markedShowCaughtUp: markCaughtUpIfNeeded(after: episode)
+                            )
+                        },
+                        onDismiss: {
+                            episode.dismissed = true
+                            lastActioned = ActionedEpisode(
+                                episode: episode,
+                                watched: false,
+                                markedShowCaughtUp: markCaughtUpIfNeeded(after: episode)
+                            )
+                        }
                     )
                     .plainRow()
                 }
@@ -398,15 +517,17 @@ struct ContentView: View {
     @ViewBuilder
     private func section(_ title: String, _ group: [TrackedShow]) -> some View {
         if !group.isEmpty {
-            header(title)
-            ForEach(Array(group.enumerated()), id: \.element.id) { index, show in
-                NavigationLink(destination: ShowDetailView(show: show)) {
-                    CompactRow(show: show, showsDivider: index < group.count - 1)
+            header(title, count: group.count)
+            if isExpanded(title) {
+                ForEach(Array(group.enumerated()), id: \.element.id) { index, show in
+                    NavigationLink(destination: ShowDetailView(show: show)) {
+                        CompactRow(show: show, showsDivider: index < group.count - 1)
+                    }
+                    .buttonStyle(.plain)
+                    .plainRow()
                 }
-                .buttonStyle(.plain)
-                .plainRow()
+                .onDelete { remove(group, at: $0) }
             }
-            .onDelete { remove(group, at: $0) }
         }
     }
 
@@ -511,6 +632,69 @@ struct ContentView: View {
         freeOnly = false
     }
 
+    /// "Watched" for a show is derived, not manual: caught up once nothing
+    /// it aired is still outstanding. Checked against `pending` filtering
+    /// the episode just actioned out by id, rather than waiting on the
+    /// query to reflect that mutation, so this is correct either way.
+    /// Returns whether it flipped the show to caught up, so Undo knows to
+    /// flip it back.
+    @discardableResult
+    private func markCaughtUpIfNeeded(after episode: PendingEpisode) -> Bool {
+        guard let show = shows.first(where: { $0.tmdbID == episode.showID }) else { return false }
+        let stillPending = pending.contains { $0.id != episode.id && $0.showID == episode.showID }
+        guard !stillPending, !show.watched else { return false }
+        show.watched = true
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: true) }
+        return true
+    }
+
+    private func syncEpisode(_ episode: PendingEpisode, watched: Bool) {
+        let (showID, season, number) = (episode.showID, episode.seasonNumber, episode.episodeNumber)
+        Task { await sharedList.syncEpisode(showID: showID, season: season, episode: number, watched: watched) }
+    }
+
+    /// Puts the episode back in Ready to watch, and un-catches-up its show
+    /// if ticking it off is what caught it up.
+    private func undo(_ action: ActionedEpisode) {
+        lastActioned = nil
+        let episode = action.episode
+        guard episode.modelContext != nil, !episode.isDeleted else { return }
+        if episode.watched { syncEpisode(episode, watched: false) }
+        episode.watched = false
+        episode.dismissed = false
+        guard action.markedShowCaughtUp,
+              let show = shows.first(where: { $0.tmdbID == episode.showID }),
+              show.watched else { return }
+        show.watched = false
+        Task { await sharedList.syncWatched(tmdbID: show.tmdbID, kind: .tv, watched: false) }
+    }
+
+    private func undoBanner(_ action: ActionedEpisode) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(action.watched ? "Marked watched" : "Dismissed")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.primary)
+                Text("\(action.showName) · \(action.label)")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button("Undo") { undo(action) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.unwatched)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
     /// Shows not already on the household list.
     private var addableToHousehold: [TrackedShow] {
         let shared = Set(sharedList.items(for: .tv).map(\.tmdbID))
@@ -521,7 +705,13 @@ struct ContentView: View {
         isAddingAllToHousehold = true
         defer { isAddingAllToHousehold = false }
         for show in addableToHousehold {
-            await sharedList.add(tmdbID: show.tmdbID, kind: .tv, title: show.name, posterPath: show.posterPath)
+            await sharedList.add(
+                tmdbID: show.tmdbID,
+                kind: .tv,
+                title: show.name,
+                posterPath: show.posterPath,
+                dayOffset: show.dayOffset
+            )
         }
     }
 
@@ -530,6 +720,14 @@ struct ContentView: View {
             let show = group[index]
             let wasShared = sharedList.contains(tmdbID: show.tmdbID, kind: .tv)
             Library.removeShow(show, wasShared: wasShared, context: context)
+        }
+    }
+
+    /// What `Notifications.reschedule` depends on. A show added, removed or
+    /// refreshed onto a new date changes this, as does Ready to watch.
+    private var notificationInputs: [String] {
+        ["\(pending.count)"] + shows.map {
+            "\($0.tmdbID)|\($0.effectiveAirDate?.timeIntervalSince1970 ?? 0)|\($0.reminderID ?? "")"
         }
     }
 
@@ -542,8 +740,8 @@ struct ContentView: View {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
         isRefreshing = false
-        await Notifications.reschedule(for: shows)
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
     }
 
     /// Runs when the app opens or returns to the foreground. Skips entirely if
@@ -567,8 +765,8 @@ struct ContentView: View {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
         isRefreshing = false
-        await Notifications.reschedule(for: shows)
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
     }
 }
 
@@ -907,6 +1105,7 @@ struct AboutView: View {
     @State private var isShowingHouseholdShare = false
     @State private var householdShareError: String?
     @State private var isLoadingHouseholdShare = false
+    @State private var isHouseholdParticipant = false
 
     private func label(for hour: Int) -> String {
         var components = DateComponents()
@@ -923,7 +1122,7 @@ struct AboutView: View {
             householdShare = try await HouseholdShareManager.fetchOrCreateShare()
             isShowingHouseholdShare = true
         } catch {
-            householdShareError = error.localizedDescription
+            householdShareError = SharedListError.message(for: error)
         }
     }
 
@@ -1005,25 +1204,37 @@ struct AboutView: View {
                     Text("Writes a reminder for every show with a confirmed date, and moves it if the date changes. Needs Reminders access.")
                 }
 
-                Section {
-                    Button {
-                        Task { await presentHouseholdShare() }
-                    } label: {
-                        HStack {
-                            Text("Invite to household list")
-                            if isLoadingHouseholdShare {
-                                Spacer()
-                                ProgressView()
+                if isHouseholdParticipant {
+                    Section {
+                        Text("You're on a household list someone else shared with you.")
+                            .foregroundStyle(Theme.secondary)
+                    } footer: {
+                        Text("Only the person who created a household list can invite others to it.")
+                    }
+                } else {
+                    Section {
+                        Button {
+                            Task { await presentHouseholdShare() }
+                        } label: {
+                            HStack {
+                                Text("Invite to household list")
+                                if isLoadingHouseholdShare {
+                                    Spacer()
+                                    ProgressView()
+                                }
                             }
                         }
+                        .disabled(isLoadingHouseholdShare)
+                    } footer: {
+                        Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                     }
-                    .disabled(isLoadingHouseholdShare)
-                } footer: {
-                    Text("Creates the household list if it doesn't exist yet, and opens the invite sheet — send the link to whoever you want sharing the list. CloudKit's own round trip can take a while, especially soon after setup changes.")
                 }
 
                 Section {
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondary)
+                    Text("Ratings by OMDb API.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondary)
                 }
@@ -1050,18 +1261,21 @@ struct AboutView: View {
                         notificationsEnabled = false
                         return
                     }
-                    await Notifications.reschedule(for: shows)
+                    await Notifications.reschedule(for: shows, context: context)
                 }
             }
             .onChange(of: notificationHour) { _, _ in
-                Task { await Notifications.reschedule(for: shows) }
+                Task { await Notifications.reschedule(for: shows, context: context) }
             }
             .onChange(of: privateNotifications) { _, _ in
-                Task { await Notifications.reschedule(for: shows) }
+                Task { await Notifications.reschedule(for: shows, context: context) }
             }
             .onChange(of: autoReminders) { _, enabled in
                 guard enabled else { return }
                 Task { await ReminderSync.sync(shows) }
+            }
+            .task {
+                isHouseholdParticipant = await SharedListManager.isParticipantInSharedHousehold()
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -1079,14 +1293,48 @@ struct AboutView: View {
 
 // MARK: - Ready to watch
 
+/// An episode just ticked off in Ready to watch, held briefly so the banner
+/// can undo it. The labels are copied up front so the banner never reads a
+/// record a refresh has since pruned.
+struct ActionedEpisode {
+    let id = UUID()
+    let episode: PendingEpisode
+    let showName: String
+    let label: String
+    let watched: Bool
+    let markedShowCaughtUp: Bool
+
+    init(episode: PendingEpisode, watched: Bool, markedShowCaughtUp: Bool) {
+        self.episode = episode
+        self.showName = episode.showName
+        self.label = episode.label
+        self.watched = watched
+        self.markedShowCaughtUp = markedShowCaughtUp
+    }
+}
+
 /// Stays highlighted until it's marked watched or dismissed.
 struct PendingEpisodeCard: View {
     let episode: PendingEpisode
+    /// The show this episode belongs to, if it's still tracked — needed to
+    /// resolve Watch now. Absent only in the edge case of a lingering
+    /// episode whose show was removed since it was recorded.
+    let show: TrackedShow?
     let onWatched: () -> Void
     let onDismiss: () -> Void
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+    @State private var isShowingWatchNowSheet = false
+    @Environment(\.openURL) private var openURL
+    @AppStorage(Subscriptions.key) private var subscriptionsRaw = ""
+
+    private var watchNowDestination: StreamingServices.Destination? {
+        show?.watchNowDestination(
+            mySubscriptions: Set(Subscriptions.decode(subscriptionsRaw).map(\.name))
+        )
+    }
+
+    private var cardInfo: some View {
+        HStack(spacing: 12) {
             Poster(path: episode.posterPath, width: 44, height: 66, radius: 5)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1102,10 +1350,39 @@ struct PendingEpisodeCard: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
             }
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            if let show {
+                NavigationLink(destination: ShowDetailView(show: show)) {
+                    cardInfo
+                }
+                .buttonStyle(.plain)
+            } else {
+                cardInfo
+            }
 
             Spacer(minLength: 4)
 
             HStack(spacing: 14) {
+                if let watchNowDestination {
+                    Button {
+                        switch watchNowDestination.presentation {
+                        case .app:
+                            openURL(watchNowDestination.url)
+                        case .web:
+                            isShowingWatchNowSheet = true
+                        }
+                    } label: {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.title3)
+                            .foregroundStyle(watchNowDestination.kind == .free ? Theme.free : Theme.primary)
+                    }
+                    .accessibilityLabel("Watch now")
+                }
+
                 Button(action: onWatched) {
                     Image(systemName: "checkmark.circle")
                         .font(.title3)
@@ -1129,5 +1406,10 @@ struct PendingEpisodeCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.bottom, 8)
+        .sheet(isPresented: $isShowingWatchNowSheet) {
+            if let watchNowDestination {
+                SafariView(url: watchNowDestination.url)
+            }
+        }
     }
 }

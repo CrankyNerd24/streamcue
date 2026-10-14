@@ -7,11 +7,11 @@ import SwiftData
 /// — the interval below is a floor requested, not a promise.
 @MainActor
 enum BackgroundRefresh {
-    static let taskID = "com.streamcue.weeklyRefresh"
+    static let taskID = "com.streamcue.nightlyRefresh"
 
-    /// One week. iOS may run it sooner if you use the app often, or later —
+    /// One night. iOS may run it sooner if you use the app often, or later —
     /// or not at all if the device is low on battery.
-    static let interval: TimeInterval = 7 * 24 * 60 * 60
+    static let interval: TimeInterval = 24 * 60 * 60
 
     static func schedule() {
         let request = BGAppRefreshTaskRequest(identifier: taskID)
@@ -25,7 +25,7 @@ enum BackgroundRefresh {
     }
 
     /// The same work the app does on open: refresh stale shows, record newly
-    /// aired episodes, tidy up, then rebuild alerts and reminders.
+    /// aired episodes, tidy up, then rebuild alerts, reminders and the badge.
     static func run(container: ModelContainer) async {
         let context = container.mainContext
 
@@ -45,14 +45,10 @@ enum BackgroundRefresh {
         EpisodeSync.prune(context: context)
         Library.deduplicate(context: context)
 
-        await Notifications.reschedule(for: shows)
+        // Reminders first: a new one moves that show's badge time to its hour.
         await ReminderSync.sync(shows)
+        await Notifications.reschedule(for: shows, context: context)
 
         try? context.save()
-
-        let pendingCount = (try? context.fetchCount(
-            FetchDescriptor<PendingEpisode>(predicate: #Predicate { !$0.watched && !$0.dismissed })
-        )) ?? 0
-        await Notifications.updateBadge(pendingCount)
     }
 }

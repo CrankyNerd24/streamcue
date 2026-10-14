@@ -5,6 +5,164 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-10-07
+
+- Bump marketing version to 2.4.2
+
+- The app icon badge now goes up as each tracked episode airs without
+  opening the app: at your alert or reminder time, or 7pm if you have
+  neither. Before, it only updated when the app opened and refreshed
+
+- Let Xcode sort the build settings
+
+## [2.4.1] - 2026-09-30
+
+- Bump marketing version to 2.4.1
+
+- Tapping a result in Add a show now opens a preview with its details and
+  where it streams, instead of adding it straight away
+
+## [2.4.0] - 2026-09-27
+
+- Add a Household list section to Help, and correct Help to say
+  background refresh runs nightly, not weekly
+
+- Bump marketing version to 2.4.0
+
+- Add a Share button to show and film pages and the preview sheet. It
+  sends the title, where it's streaming and a link to its TMDB page
+
+## [2.3.20] - 2026-09-27
+
+- Bump marketing version to 2.3.20
+
+- Fix the build script that stamps the git commit into the version shown
+  in Help
+
+## [2.3.19] - 2026-09-27
+
+- Bump marketing version to 2.3.19
+
+- Episodes marked watched on a household show now clear from Ready to
+  watch on everyone's device, and the household list refreshes each time
+  you return to the app instead of only at launch
+
+## [2.3.18] - 2026-09-26
+
+- Bump marketing version to 2.3.18
+
+- Show an Update available card at the top of the Shows tab when a newer
+  version is on the App Store; dismissing it hides it until the next one
+
+- Bump marketing version to 2.3.17
+
+- Recent episodes on a show's page starts collapsed each time you open
+  the show
+
+## [2.3.16] - 2026-09-25
+
+- Bump marketing version to 2.3.16
+
+- Make a show's Recent episodes section collapsible; it remembers
+  whether you left it open or closed
+
+## [2.3.15] - 2026-09-25
+
+- Bump marketing version to 2.3.15
+
+- Undo watched or dismissed on a single episode: a show's page now lists
+  its recent episodes, and Undo puts one back in Ready to watch
+
+- Show an Undo banner for a few seconds after marking an episode
+  watched or dismissing it in Ready to watch
+
+- Bump marketing version to 2.3.14
+
+- Add a per-show Watch on setting: Automatic, one of your services, or a
+  custom name and link for services TMDB doesn't list (e.g. Dropout)
+
+- Watch now sticks to your own services when a title is on one, instead
+  of falling through to another app when yours has no app to open
+
+- Bump marketing version to 2.3.13
+
+- Add a Back to top button to the Your services picker, like Discover's
+
+- Bump marketing version to 2.3.12
+
+- List your current services at the top of the Your services picker,
+  then the rest, each alphabetically
+
+- Bump marketing version to 2.3.11
+
+- Household list errors caused by a missing or unavailable iCloud account
+  now say to sign in to iCloud in Settings, instead of CloudKit's "bad or
+  missing auth token"
+
+- Bump marketing version to 2.3.10
+
+- Bump marketing version to 2.3.9
+
+- Don't show a Household list error on launch when the device isn't
+  signed into iCloud (or its account is temporarily unavailable) or isn't
+  part of a household
+
+- Bump marketing version to 2.3.8
+
+- Sort the Your services picker alphabetically
+
+- Bump marketing version to 2.3.7
+
+- Airing today, Airing next, No date announced and Finished on the Shows
+  tab collapse with a tap on their header, like Ready to watch, and
+  remember whether they're open
+
+- Bump marketing version to 2.3.6
+
+- Marking today's episode watched in Ready to watch no longer drops the
+  show back into Airing today
+
+- Bump marketing version to 2.3.5
+
+- Fix a "client oplock error" alert when tapping the Day offset stepper
+  quickly on a show that's on the household list
+
+- Tapping a Ready to watch card opens the show, like every other row
+
+- Add a Watch now button to Ready to watch cards on the Shows tab
+
+- Open the JustWatch fallback in an in-app Safari sheet instead of
+  Safari, when Watch now can't deep-link straight into an app
+
+- Lead Watch now with the user's own subscribed service, and style
+  free/ad-supported options green
+
+- Sync a show's day offset across the household list
+
+- Hide a show from the hero/upcoming sections once it has an episode
+  sitting in Ready to watch, so it isn't shown twice
+
+- Add a Watched button to the title preview sheet, alongside Add and Not
+  interested
+
+- Bump marketing version to 2.3.2
+
+- Derive a show's watched state from episode progress instead of a manual
+  toggle — caught up when nothing aired is still outstanding, un-caught-up
+  again the moment a new episode airs
+
+- Bump marketing version to 2.3.1
+
+- Change background refresh from weekly to nightly
+
+- Add OMDb attribution to Settings, required by its CC BY-NC licence
+
+- Fix marking a movie watched/unwatched not syncing to the household list
+
+- Add shared Xcode scheme
+
+- Bump marketing version to 2.3.0
+
 - Add Run Script phase to embed git commit hash in Info.plist
 
 - Bump version to 2.2.1 (2)

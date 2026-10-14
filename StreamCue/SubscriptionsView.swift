@@ -342,6 +342,7 @@ struct ServicePickerView: View {
     @State private var query = ""
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var scrollOffset: CGFloat = 0
 
     init(
         selected: [Subscriptions.Service],
@@ -359,6 +360,7 @@ struct ServicePickerView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             List {
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
@@ -383,6 +385,15 @@ struct ServicePickerView: View {
             .overlay {
                 if isLoading { ProgressView() }
             }
+            .trackScrollDistance($scrollOffset)
+            .overlay(alignment: .bottomTrailing) {
+                if scrollOffset > 500, let first = filtered.first {
+                    BackToTopButton {
+                        withAnimation { proxy.scrollTo(first.id, anchor: .top) }
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: scrollOffset > 500)
             .searchable(text: $query, prompt: "Service name")
             .navigationTitle("Your services")
             .navigationBarTitleDisplayMode(.inline)
@@ -407,6 +418,7 @@ struct ServicePickerView: View {
                 }
             }
             .task { await load() }
+            }
         }
     }
 
@@ -418,7 +430,19 @@ struct ServicePickerView: View {
         isLoading = true
         defer { isLoading = false }
         do {
+            // TMDB returns these in its own display-priority order, which
+            // reads as random in a long list. Services you already have come
+            // first, then everything else, each alphabetical. Based on what
+            // was checked when the picker opened, not live, so rows don't
+            // jump around under your finger as you tick them.
+            let subscribed = Set(selected.map(\.id))
             all = try await TMDBClient.shared.availableProviders()
+                .sorted { a, b in
+                    let aSubscribed = subscribed.contains(a.providerId)
+                    let bSubscribed = subscribed.contains(b.providerId)
+                    if aSubscribed != bSubscribed { return aSubscribed }
+                    return a.providerName.localizedStandardCompare(b.providerName) == .orderedAscending
+                }
         } catch {
             errorMessage = error.localizedDescription
         }

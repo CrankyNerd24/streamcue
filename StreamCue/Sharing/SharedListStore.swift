@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Observation
 import SwiftData
@@ -40,8 +41,18 @@ final class SharedListStore {
         do {
             items = try await SharedListManager.fetchAll()
             syncToPersonalList(context: context)
+            await backfillWatchedEpisodes(context: context)
+        } catch SharedListError.notSetUp {
+            items = []
+        } catch where SharedListError.isAccountUnavailable(error) {
+            // No usable iCloud account on this device (the Simulator,
+            // usually) — CloudKit reports it as a bad or missing auth token.
+            // This runs on every launch, so treat it like having no household
+            // list rather than alerting; sharing actions still surface it if
+            // tried.
+            items = []
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 
@@ -52,26 +63,126 @@ final class SharedListStore {
     @MainActor
     private func syncToPersonalList(context: ModelContext) {
         for item in items where !Library.isIgnored(tmdbID: item.tmdbID, kind: item.kind, context: context) {
+            // Watched wins, same as the dedup merge in Library — this only
+            // ever turns a personal copy on, never off, so it can't fight
+            // with someone still watching it on their own device.
             switch item.kind {
             case .tv:
-                Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                let show = Library.addShow(tmdbID: item.tmdbID, name: item.title, posterPath: item.posterPath, context: context)
+                if item.watched && !show.watched {
+                    show.watched = true
+                }
+                // Day offset has no "wins" — the household shares one
+                // broadcast delay, so whoever set it last is authoritative.
+                if item.dayOffset != show.dayOffset {
+                    show.dayOffset = item.dayOffset
+                }
+                EpisodeSync.applySharedWatched(item.watchedEpisodes, to: show, context: context)
             case .movies:
-                Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
+                let movie = Library.addMovie(tmdbID: item.tmdbID, title: item.title, posterPath: item.posterPath, context: context)
+                if item.watched && !movie.watched {
+                    movie.watched = true
+                }
             }
         }
     }
 
-    func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?) async {
+    /// Pushes this device's watched state for a title already on the
+    /// household list up to the shared record, so marking something watched
+    /// personally shows up as watched on everyone else's copy too. A no-op
+    /// if the title isn't shared, or the shared record already agrees.
+    func syncWatched(tmdbID: Int, kind: MediaKind, watched: Bool) async {
+        guard let item = item(tmdbID: tmdbID, kind: kind), item.watched != watched else { return }
+        await setWatched(item, watched: watched)
+    }
+
+    /// Pushes one episode's watched state to a shared show's record, so it
+    /// clears from Ready to watch on everyone else's device too. A no-op if
+    /// the show isn't shared or the record already agrees. Dismissing isn't
+    /// synced — skipping an episode is a personal choice.
+    ///
+    /// Pushes for the same show run one after another: each re-reads and
+    /// edits the record, and two in flight at once could each miss the
+    /// other's episode.
+    @MainActor
+    func syncEpisode(showID: Int, season: Int, episode: Int, watched: Bool) async {
+        guard let item = item(tmdbID: showID, kind: .tv) else { return }
+        let key = SharedItem.episodeKey(season: season, episode: episode)
+        guard item.watchedEpisodes.contains(key) != watched else { return }
+        await pushWatchedEpisodes(
+            item.recordID,
+            adding: watched ? [key] : [],
+            removing: watched ? [] : [key],
+            reportsErrors: true
+        )
+    }
+
+    @ObservationIgnored private var episodePushes: [CKRecord.ID: Task<Void, Never>] = [:]
+
+    @MainActor
+    private func pushWatchedEpisodes(
+        _ recordID: CKRecord.ID,
+        adding: Set<String>,
+        removing: Set<String>,
+        reportsErrors: Bool
+    ) async {
+        if let index = items.firstIndex(where: { $0.recordID == recordID }) {
+            items[index].watchedEpisodes.formUnion(adding)
+            items[index].watchedEpisodes.subtract(removing)
+        }
+        let previous = episodePushes[recordID]
+        let push = Task { @MainActor in
+            await previous?.value
+            do {
+                try await SharedListManager.updateWatchedEpisodes(recordID, adding: adding, removing: removing)
+            } catch where reportsErrors {
+                errorMessage = SharedListError.message(for: error)
+            } catch {}
+        }
+        episodePushes[recordID] = push
+        await push.value
+    }
+
+    /// Episodes ticked off before episode sharing existed — or while this
+    /// device was offline — only live on this device. Sends any the shared
+    /// record is missing. Quiet on failure: it runs on every refresh and
+    /// will try again next time.
+    @MainActor
+    private func backfillWatchedEpisodes(context: ModelContext) async {
+        for item in items where item.kind == .tv {
+            let id = item.tmdbID
+            let descriptor = FetchDescriptor<PendingEpisode>(
+                predicate: #Predicate { $0.showID == id && $0.watched == true }
+            )
+            let local = Set(((try? context.fetch(descriptor)) ?? []).map {
+                SharedItem.episodeKey(season: $0.seasonNumber, episode: $0.episodeNumber)
+            })
+            let missing = local.subtracting(item.watchedEpisodes)
+            guard !missing.isEmpty else { continue }
+            await pushWatchedEpisodes(item.recordID, adding: missing, removing: [], reportsErrors: false)
+        }
+    }
+
+    /// Same idea as `syncWatched`, for a show's day offset. TV only — movies
+    /// have no such field.
+    @MainActor
+    func syncDayOffset(tmdbID: Int, dayOffset: Int) async {
+        guard let item = item(tmdbID: tmdbID, kind: .tv), item.dayOffset != dayOffset else { return }
+        await setDayOffset(item, dayOffset: dayOffset)
+    }
+
+    func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?, dayOffset: Int = 0) async {
         do {
             let item = try await SharedListManager.add(
                 tmdbID: tmdbID,
                 kind: kind,
                 title: title,
-                posterPath: posterPath
+                posterPath: posterPath,
+                dayOffset: dayOffset
             )
             items.insert(item, at: 0)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 
@@ -82,7 +193,35 @@ final class SharedListStore {
             try await SharedListManager.setWatched(item, watched: watched)
         } catch {
             items[index].watched = !watched
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
+        }
+    }
+
+    /// Records with a day-offset push in flight. Tapping the stepper fires
+    /// one call per tap; rather than racing a CloudKit save per tap, later
+    /// taps just update `items` and the push already running picks up the
+    /// newest value when its current save finishes.
+    private var dayOffsetPushes: Set<CKRecord.ID> = []
+
+    @MainActor
+    func setDayOffset(_ item: SharedItem, dayOffset: Int) async {
+        guard let index = items.firstIndex(of: item) else { return }
+        items[index].dayOffset = dayOffset
+        guard dayOffsetPushes.insert(item.recordID).inserted else { return }
+        defer { dayOffsetPushes.remove(item.recordID) }
+
+        var confirmed = item.dayOffset
+        while let latest = items.first(where: { $0.recordID == item.recordID })?.dayOffset, latest != confirmed {
+            do {
+                try await SharedListManager.setDayOffset(item, dayOffset: latest)
+                confirmed = latest
+            } catch {
+                if let index = items.firstIndex(where: { $0.recordID == item.recordID }) {
+                    items[index].dayOffset = confirmed
+                }
+                errorMessage = SharedListError.message(for: error)
+                return
+            }
         }
     }
 
@@ -93,7 +232,7 @@ final class SharedListStore {
             try await SharedListManager.remove(item)
         } catch {
             items = previous
-            errorMessage = error.localizedDescription
+            errorMessage = SharedListError.message(for: error)
         }
     }
 

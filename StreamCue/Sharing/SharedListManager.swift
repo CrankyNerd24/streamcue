@@ -9,6 +9,32 @@ enum SharedListError: LocalizedError {
             return "There's no household list yet — create or accept a share first."
         }
     }
+
+    /// Signed out (`notAuthenticated`), or signed in but not usable yet —
+    /// e.g. still finishing setup or waiting on a password re-entry
+    /// (`accountTemporarilyUnavailable`).
+    static let accountUnavailableCodes: Set<CKError.Code> = [
+        .notAuthenticated,
+        .accountTemporarilyUnavailable,
+    ]
+
+    /// True if CloudKit failed because there's no usable iCloud account,
+    /// including when that's the reason behind a partial failure.
+    static func isAccountUnavailable(_ error: Error) -> Bool {
+        guard let error = error as? CKError else { return false }
+        if accountUnavailableCodes.contains(error.code) { return true }
+        return error.partialErrorsByItemID?.values.contains { isAccountUnavailable($0) } ?? false
+    }
+
+    /// What to show in an alert for a household-list failure. CloudKit's own
+    /// text for a missing iCloud account ("Account temporarily unavailable
+    /// due to bad or missing auth token") says nothing about how to fix it.
+    static func message(for error: Error) -> String {
+        if isAccountUnavailable(error) {
+            return "The household list needs iCloud. Sign in to iCloud in the Settings app — or finish any sign-in or password prompt there — then try again."
+        }
+        return error.localizedDescription
+    }
 }
 
 /// CRUD for the household's shared list, stored as raw `SharedItem` CloudKit
@@ -30,22 +56,38 @@ enum SharedListManager {
 
     private static var container: CKContainer { .default() }
 
+    /// Checks the shared database — "am I a participant in someone else's
+    /// household?" — before ever looking at a zone this device owns itself.
+    /// Zone names aren't unique across accounts: if this device ever tapped
+    /// "Invite to household list" itself, even by mistake, it owns its own
+    /// zone of the same name, and checking owned-first would resolve to
+    /// that instead, permanently shadowing the household it actually
+    /// joined. Joining always wins over owning.
     private static func resolveContext() async throws -> Context {
+        if let zone = try await sharedHouseholdZone() {
+            return Context(database: container.sharedCloudDatabase, zoneID: zone.zoneID)
+        }
+
         let ownedZoneID = CKRecordZone.ID(
             zoneName: HouseholdShareManager.zoneName,
             ownerName: CKCurrentUserDefaultName
         )
-        let privateDatabase = container.privateCloudDatabase
-        if (try? await privateDatabase.recordZone(for: ownedZoneID)) != nil {
-            return Context(database: privateDatabase, zoneID: ownedZoneID)
-        }
-
-        let sharedDatabase = container.sharedCloudDatabase
-        let zones = try await sharedDatabase.allRecordZones()
-        guard let zone = zones.first(where: { $0.zoneID.zoneName == HouseholdShareManager.zoneName }) else {
+        guard (try? await container.privateCloudDatabase.recordZone(for: ownedZoneID)) != nil else {
             throw SharedListError.notSetUp
         }
-        return Context(database: sharedDatabase, zoneID: zone.zoneID)
+        return Context(database: container.privateCloudDatabase, zoneID: ownedZoneID)
+    }
+
+    private static func sharedHouseholdZone() async throws -> CKRecordZone? {
+        let zones = try await container.sharedCloudDatabase.allRecordZones()
+        return zones.first { $0.zoneID.zoneName == HouseholdShareManager.zoneName }
+    }
+
+    /// True if this device is a participant in a household someone else
+    /// owns — used to hide "Invite to household list" for joiners, so they
+    /// can't accidentally create a second, competing household of their own.
+    static func isParticipantInSharedHousehold() async -> Bool {
+        (try? await sharedHouseholdZone()) != nil
     }
 
     private static func rootRecordID(in zoneID: CKRecordZone.ID) -> CKRecord.ID {
@@ -82,7 +124,13 @@ enum SharedListManager {
     /// Saves an independent copy of a title onto the shared list — no
     /// ongoing link back to whatever personal-list item it came from.
     @discardableResult
-    static func add(tmdbID: Int, kind: MediaKind, title: String, posterPath: String?) async throws -> SharedItem {
+    static func add(
+        tmdbID: Int,
+        kind: MediaKind,
+        title: String,
+        posterPath: String?,
+        dayOffset: Int = 0
+    ) async throws -> SharedItem {
         let context = try await resolveContext()
         let record = CKRecord(recordType: SharedItem.recordType, zoneID: context.zoneID)
         record.parent = CKRecord.Reference(recordID: rootRecordID(in: context.zoneID), action: .none)
@@ -94,7 +142,8 @@ enum SharedListManager {
             title: title,
             posterPath: posterPath,
             watched: false,
-            addedAt: .now
+            addedAt: .now,
+            dayOffset: dayOffset
         ).apply(to: record)
 
         let saved = try await context.database.save(record)
@@ -108,7 +157,53 @@ enum SharedListManager {
         let context = try await resolveContext()
         let record = try await context.database.record(for: item.recordID)
         record[SharedItem.Field.watched] = (watched ? 1 : 0) as CKRecordValue
-        _ = try await context.database.save(record)
+        try await saveChangedKeys(record, in: context.database)
+    }
+
+    /// Adds and removes episode keys on a show's shared record. Re-reads the
+    /// record first and edits that, rather than writing this device's copy,
+    /// so an episode a housemate marked in the meantime isn't dropped.
+    static func updateWatchedEpisodes(
+        _ recordID: CKRecord.ID,
+        adding: Set<String>,
+        removing: Set<String>
+    ) async throws {
+        let context = try await resolveContext()
+        let record = try await context.database.record(for: recordID)
+        var keys = Set((record[SharedItem.Field.watchedEpisodes] as? [String]) ?? [])
+        keys.formUnion(adding)
+        keys.subtract(removing)
+        if keys.isEmpty {
+            record[SharedItem.Field.watchedEpisodes] = nil
+        } else {
+            record[SharedItem.Field.watchedEpisodes] = keys.sorted() as CKRecordValue
+        }
+        try await saveChangedKeys(record, in: context.database)
+    }
+
+    /// TV only. Whoever last changed it wins for the whole household — the
+    /// same broadcast delay usually applies to everyone watching it there.
+    static func setDayOffset(_ item: SharedItem, dayOffset: Int) async throws {
+        let context = try await resolveContext()
+        let record = try await context.database.record(for: item.recordID)
+        record[SharedItem.Field.dayOffset] = dayOffset as CKRecordValue
+        try await saveChangedKeys(record, in: context.database)
+    }
+
+    /// `database.save(_:)` uses `.ifServerRecordUnchanged`, which rejects the
+    /// write ("client oplock error") whenever the record changed between our
+    /// fetch and our save — a housemate's edit, or our own previous save
+    /// still in flight. These are single-field, last-writer-wins updates, so
+    /// only send the field we touched and ignore the change tag.
+    private static func saveChangedKeys(_ record: CKRecord, in database: CKDatabase) async throws {
+        let (results, _) = try await database.modifyRecords(
+            saving: [record],
+            deleting: [],
+            savePolicy: .changedKeys
+        )
+        if case .failure(let error) = results[record.recordID] {
+            throw error
+        }
     }
 
     static func remove(_ item: SharedItem) async throws {

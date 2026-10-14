@@ -10,6 +10,7 @@ struct AddShowView: View {
     @State private var results: [TVSearchResult] = []
     @State private var isSearching = false
     @State private var errorMessage: String?
+    @State private var preview: TitlePreview?
 
     var body: some View {
         NavigationStack {
@@ -20,7 +21,7 @@ struct AddShowView: View {
                 }
                 ForEach(results) { result in
                     Button {
-                        add(result)
+                        preview = TitlePreview(result, isTracked: isTracked(result.id))
                     } label: {
                         HStack(spacing: 12) {
                             PosterThumbnail(path: result.posterPath)
@@ -40,7 +41,7 @@ struct AddShowView: View {
                             }
                         }
                     }
-                    .disabled(isTracked(result.id))
+                    .foregroundStyle(.primary)
                 }
             }
             .overlay {
@@ -56,6 +57,9 @@ struct AddShowView: View {
             }
             .searchable(text: $query, prompt: "Show title")
             .onSubmit(of: .search) { Task { await search() } }
+            .sheet(item: $preview) { preview in
+                TitlePreviewSheet(preview: preview) { add(preview) }
+            }
             .navigationTitle("Add a show")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -82,16 +86,16 @@ struct AddShowView: View {
         isSearching = false
     }
 
-    private func add(_ result: TVSearchResult) {
+    /// Called from the preview's Add (and Watched) button. The preview
+    /// dismisses itself; the search sheet stays open so you can add another.
+    private func add(_ preview: TitlePreview) {
+        guard !isTracked(preview.id) else { return }
         let show = Library.addShow(
-                tmdbID: result.id,
-                name: result.name,
-                posterPath: result.posterPath,
-                context: context
-            )
-        Task {
-            try? await show.refresh()
-        }
-        dismiss()
+            tmdbID: preview.id,
+            name: preview.title,
+            posterPath: preview.posterPath,
+            context: context
+        )
+        Task { try? await show.refresh() }
     }
 }
