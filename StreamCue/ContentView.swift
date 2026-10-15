@@ -501,6 +501,7 @@ struct ContentView: View {
                         },
                         onDismiss: {
                             episode.dismissed = true
+                            syncEpisode(episode, watched: true)
                             lastActioned = ActionedEpisode(
                                 episode: episode,
                                 watched: false,
@@ -659,7 +660,7 @@ struct ContentView: View {
         lastActioned = nil
         let episode = action.episode
         guard episode.modelContext != nil, !episode.isDeleted else { return }
-        if episode.watched { syncEpisode(episode, watched: false) }
+        if episode.watched || episode.dismissed { syncEpisode(episode, watched: false) }
         episode.watched = false
         episode.dismissed = false
         guard action.markedShowCaughtUp,

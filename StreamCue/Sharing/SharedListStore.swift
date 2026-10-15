@@ -96,10 +96,11 @@ final class SharedListStore {
         await setWatched(item, watched: watched)
     }
 
-    /// Pushes one episode's watched state to a shared show's record, so it
-    /// clears from Ready to watch on everyone else's device too. A no-op if
-    /// the show isn't shared or the record already agrees. Dismissing isn't
-    /// synced — skipping an episode is a personal choice.
+    /// Pushes one episode's cleared state to a shared show's record, so it
+    /// clears from Ready to watch on everyone else's device too — called for
+    /// both watching and dismissing an episode, since the shared record only
+    /// has one "done with this" signal. A no-op if the show isn't shared or
+    /// the record already agrees.
     ///
     /// Pushes for the same show run one after another: each re-reads and
     /// edits the record, and two in flight at once could each miss the
