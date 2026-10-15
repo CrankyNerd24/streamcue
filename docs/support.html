@@ -4,31 +4,76 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StreamCue Support</title>
+<meta name="theme-color" content="#121216">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg: #121216;
+    --bg-2: #1a1a20;
+    --line: #2e2e3a;
+    --text: #f2efe9;
+    --muted: #a5a2ad;
+    --accent: #ff9f43;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 32px 20px 80px;
-    line-height: 1.6;
-    color: #1c1c1e;
-    background: #ffffff;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 17px/1.65 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 1.6em; margin-bottom: 4px; }
-  .updated { color: #6e6e73; font-size: 0.9em; margin-bottom: 32px; }
-  h2 { font-size: 1.15em; margin-top: 36px; }
-  p, li { font-size: 0.98em; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font: 800 20px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; }
+  .brand img { width: 34px; height: 34px; border-radius: 8px; }
+  nav .links { display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--muted); text-decoration: none; }
+  nav .links a:hover, nav .links a[aria-current] { color: var(--text); }
+  main { max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font: 800 clamp(34px, 5vw, 48px)/1.08 "Bricolage Grotesque", sans-serif; letter-spacing: -.02em; margin: 0 0 10px; }
+  .updated { color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 36px; }
+  h2 { font: 800 24px/1.2 "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; margin: 44px 0 12px; }
+  p, li { color: #d6d3dc; }
+  p strong, li strong { color: var(--text); font-weight: 600; }
   ul { padding-left: 20px; }
-  a { color: #0066cc; }
-  .contact {
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e5ea;
-  }
+  li { margin-bottom: 10px; }
+  li::marker { color: var(--accent); }
+  a { color: var(--accent); }
+  a:hover { filter: brightness(1.1); }
+  .contact { margin-top: 48px; padding: 24px 26px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; }
+  .contact h2 { margin-top: 0; }
+  .contact p { margin-bottom: 0; }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px; }
+  .foot .links { display: flex; gap: 20px; }
+  .foot a { color: var(--text); text-decoration: none; }
+  .foot a:hover { color: var(--accent); }
+  .attrib { margin-top: 18px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  @media (max-width: 560px) { nav .links { gap: 16px; font-size: 14px; } main { padding-top: 24px; } }
 </style>
 </head>
 <body>
 
+<div class="wrap">
+  <nav>
+    <a class="brand" href="./">
+      <img src="icon.png" alt="" onerror="this.remove()">
+      StreamCue
+    </a>
+    <div class="links">
+      <a href="support.html" aria-current="page">Support</a>
+      <a href="privacy.html">Privacy</a>
+    </div>
+  </nav>
+</div>
+
+<main>
 <h1>StreamCue Support</h1>
 <p class="updated">Last updated: September 2026</p>
 
@@ -83,6 +128,22 @@
     <a href="mailto:crankynerdcustoms@gmail.com">crankynerdcustoms@gmail.com</a>
   </p>
 </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <span>© 2026 StreamCue</span>
+      <div class="links">
+        <a href="./">Home</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy Policy</a>
+      </div>
+    </div>
+    <p class="attrib">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+  </div>
+</footer>
 
 </body>
 </html>
