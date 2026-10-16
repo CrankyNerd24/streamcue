@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreamCue — Know what's on, and where</title>
+<meta name="description" content="StreamCue tracks your TV shows and movies: when new episodes air, when shows come back, and where to stream them — including what's free. No ads, no tracking, no subscription.">
+<meta property="og:title" content="StreamCue">
+<meta property="og:description" content="Air dates, return dates, and where to watch — for every show and movie you follow.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#121216">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---- Links: change these two if your pages live elsewhere ---- */
+  /* Support: support.html   Privacy: privacy.html   (see footer + nav) */
+
+  :root {
+    --bg: #121216;
+    --bg-2: #1a1a20;
+    --card: #20202a;
+    --line: #2e2e3a;
+    --text: #f2efe9;
+    --muted: #a5a2ad;
+    --accent: #ff9f43;
+    --accent-ink: #1a1206;
+    --free: #3ddc84;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 17px/1.6 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  /* Nav */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 800 20px/1 "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; }
+  .brand img { width: 34px; height: 34px; border-radius: 8px; }
+  nav .links { display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--muted); text-decoration: none; }
+  nav .links a:hover { color: var(--text); }
+
+  /* Hero */
+  .hero { padding: 64px 0 80px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
+  h1 { font: 800 clamp(40px, 6vw, 68px)/1.02 "Bricolage Grotesque", sans-serif; letter-spacing: -.025em; margin: 0 0 22px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lede { font-size: 19px; color: var(--muted); max-width: 34ch; margin: 0 0 32px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 12px; font-weight: 600; text-decoration: none; font-size: 16px; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-primary svg { width: 20px; height: 20px; }
+  .pledge { font-size: 14px; color: var(--muted); }
+
+  /* Hero visual: a stack of "cue cards" */
+  .stack { position: relative; display: grid; gap: 14px; }
+  .cue { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; display: grid; grid-template-columns: 52px 1fr auto; gap: 16px; align-items: center; box-shadow: 0 18px 40px -24px rgba(0,0,0,.7); }
+  .cue:nth-child(2) { margin-left: 28px; }
+  .cue:nth-child(3) { margin-left: 12px; }
+  .poster { width: 52px; height: 72px; border-radius: 8px; }
+  .p1 { background: linear-gradient(160deg, #5b3cc4, #22184d); }
+  .p2 { background: linear-gradient(160deg, #e0563b, #4a1a12); }
+  .p3 { background: linear-gradient(160deg, #2a9d8f, #0f3833); }
+  .cue h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .cue p { margin: 0; font-size: 14px; color: var(--muted); }
+  .tag { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .tag-free { background: rgba(61,220,132,.14); color: var(--free); }
+  .tag-date { background: rgba(255,159,67,.14); color: var(--accent); }
+  .tag-back { background: rgba(255,255,255,.07); color: var(--text); }
+
+  /* Features */
+  section { padding: 72px 0; }
+  .section-head { max-width: 620px; margin-bottom: 40px; }
+  h2 { font: 800 clamp(30px, 4vw, 42px)/1.1 "Bricolage Grotesque", sans-serif; letter-spacing: -.02em; margin: 0 0 14px; }
+  .section-head p { color: var(--muted); margin: 0; font-size: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feature { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+  .feature .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,159,67,.12); color: var(--accent); margin-bottom: 16px; }
+  .feature .ic svg { width: 22px; height: 22px; }
+  .feature h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .free { color: var(--free); font-weight: 600; }
+
+  /* Privacy band */
+  .band { background: var(--bg-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .promises { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .promise { border-left: 2px solid var(--accent); padding: 4px 0 4px 16px; }
+  .promise strong { display: block; font-size: 17px; margin-bottom: 4px; }
+  .promise span { color: var(--muted); font-size: 15px; }
+
+  /* Final CTA */
+  .final { text-align: center; }
+  .final .app-icon { width: 96px; height: 96px; border-radius: 22px; margin: 0 auto 24px; display: block; box-shadow: 0 20px 50px -20px rgba(255,159,67,.45); }
+  .final p { color: var(--muted); margin: 0 auto 28px; max-width: 46ch; font-size: 18px; }
+  .final .cta { justify-content: center; }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px; }
+  .foot .links { display: flex; gap: 20px; }
+  .foot a { color: var(--text); text-decoration: none; }
+  .foot a:hover { color: var(--accent); }
+  .attrib { margin-top: 18px; font-size: 13px; line-height: 1.5; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding: 32px 0 56px; gap: 40px; }
+    .grid { grid-template-columns: 1fr 1fr; }
+    .promises { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    nav .links { gap: 16px; font-size: 14px; }
+    .grid, .promises { grid-template-columns: 1fr; }
+    .cue:nth-child(2), .cue:nth-child(3) { margin-left: 0; }
+    section { padding: 56px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="./">
+      <img src="icon.png" alt="" onerror="this.remove()">
+      StreamCue
+    </a>
+    <div class="links">
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <span class="eyebrow">TV &amp; movie tracker for iPhone</span>
+      <h1>Know what's on.<br>Know <em>where</em> to watch it.</h1>
+      <p class="lede">StreamCue keeps every show and movie you follow in one place — new episodes, return dates, and which of your services has it, free ones included.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://apps.apple.com/us/app/streamcue/id6811619439" aria-label="Download StreamCue on the App Store">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.05 1.6 2.24 2.73 2.2 1.1-.05 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.4 1.2-2.46-.03-.01-2.3-.88-2.32-3.5zM14.2 6.14c.6-.73 1-1.74.9-2.75-.87.04-1.92.58-2.54 1.3-.56.64-1.05 1.67-.92 2.66.97.08 1.96-.49 2.56-1.21z"/></svg>
+          Download on the App Store
+        </a>
+        <span class="pledge">No ads · No tracking · No subscription</span>
+      </div>
+    </div>
+
+    <div class="stack" aria-hidden="true">
+      <div class="cue">
+        <div class="poster p1"></div>
+        <div><h3>New episode tonight</h3><p>S2 · E6 · 9:00 PM</p></div>
+        <span class="tag tag-date">Tonight</span>
+      </div>
+      <div class="cue">
+        <div class="poster p2"></div>
+        <div><h3>Streaming with ads</h3><p>On a service you can watch free</p></div>
+        <span class="tag tag-free">Free</span>
+      </div>
+      <div class="cue">
+        <div class="poster p3"></div>
+        <div><h3>Season 4 announced</h3><p>Returns in March</p></div>
+        <span class="tag tag-back">Coming back</span>
+      </div>
+    </div>
+  </header>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Everything you watch, on cue.</h2>
+      <p>Stop checking five apps to figure out what's new and where it lives.</p>
+    </div>
+    <div class="grid">
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+        <h3>Air dates &amp; return dates</h3>
+        <p>See when the next episode drops and when a show between seasons is coming back.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M8 2l4 4 4-4"/></svg></div>
+        <h3>Where to stream it</h3>
+        <p>Every title shows which services carry it — with <span class="free">free and ad-supported</span> options called out.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg></div>
+        <h3>Watch Now</h3>
+        <p>One tap takes you to the title, starting with the services you already subscribe to.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+        <h3>Reminders that show up</h3>
+        <p>Notifications for new episodes, plus the option to add them to Apple Reminders.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+        <h3>Discover what's next</h3>
+        <p>Browse what's trending, search by title, or follow an actor or studio to find more.</p>
+      </div>
+      <div class="feature">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>Share with your household</h3>
+        <p>Keep one list with your partner through iCloud, so you both know what's up next.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Built to leave you alone.</h2>
+      <p>StreamCue doesn't want your data. It just wants you to catch the next episode.</p>
+    </div>
+    <div class="promises">
+      <div class="promise"><strong>No account</strong><span>Open it and start adding shows.</span></div>
+      <div class="promise"><strong>No ads</strong><span>Not in the app, not ever.</span></div>
+      <div class="promise"><strong>No tracking</strong><span>Your list stays on your device and your iCloud.</span></div>
+      <div class="promise"><strong>No subscription</strong><span>Pay once, keep it.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <img class="app-icon" src="icon.png" alt="StreamCue app icon" onerror="this.remove()">
+    <h2>Never miss the cue.</h2>
+    <p>StreamCue is available for iPhone in the United States.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://apps.apple.com/us/app/streamcue/id6811619439">Get StreamCue</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <span>© 2026 StreamCue</span>
+      <div class="links">
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy Policy</a>
+      </div>
+    </div>
+    <p class="attrib">This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability may vary. App Store is a service mark of Apple Inc.</p>
+  </div>
+</footer>
+
+</body>
+</html>
