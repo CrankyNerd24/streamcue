@@ -5,10 +5,16 @@ import CloudKit
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TrackedShow.name) private var shows: [TrackedShow]
+    // airDate alone ties whenever a show drops more than one episode at
+    // once, leaving them in whatever order SwiftData feels like — season
+    // and episode number break that tie so they always read in order.
     @Query(
         filter: #Predicate<PendingEpisode> { !$0.watched && !$0.dismissed },
-        sort: \PendingEpisode.airDate,
-        order: .reverse
+        sort: [
+            SortDescriptor(\PendingEpisode.airDate, order: .reverse),
+            SortDescriptor(\PendingEpisode.seasonNumber),
+            SortDescriptor(\PendingEpisode.episodeNumber)
+        ]
     ) private var pending: [PendingEpisode]
     /// Every recorded episode, watched and dismissed included — see `dated`.
     @Query private var episodeRecords: [PendingEpisode]
