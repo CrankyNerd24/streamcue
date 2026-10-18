@@ -38,6 +38,12 @@ final class TrackedShow {
     var nextEpisodeOverview: String?
     var lastAiredSeason: Int?
 
+    /// Series-wide episode/season counts from TMDB — lets the full progress
+    /// checklist show "X of Y watched" and bound the season picker without
+    /// fetching every season just to count them.
+    var totalEpisodeCount: Int?
+    var totalSeasonCount: Int?
+
     /// Days to shift TMDB's air date by, for shows that reach you later than
     /// the original broadcast. Applied through `effectiveAirDate` — never read
     /// `nextAirDate` directly for anything user-facing.
@@ -105,6 +111,13 @@ extension TrackedShow {
         }
     }
 
+    /// True once nothing more is coming — the only case EpisodeSync's 30-day
+    /// window can't help you catch up on, since there's no "recent" episode
+    /// to catch up from.
+    var hasEnded: Bool {
+        status == "Ended" || status == "Canceled" || status == "Cancelled"
+    }
+
     var isFreeSomewhere: Bool { !freeOn.isEmpty }
 
     /// Best single score to show in a compact space.
@@ -156,6 +169,8 @@ extension TrackedShow {
         lastAiredSeason = [details.lastEpisodeToAir?.seasonNumber, details.nextEpisodeToAir?.seasonNumber]
             .compactMap { $0 }
             .max()
+        totalEpisodeCount = details.numberOfEpisodes
+        totalSeasonCount = details.numberOfSeasons
         subscriptionOn = availability.subscription
         freeOn = availability.free
         rentOrBuyOn = availability.rentOrBuy

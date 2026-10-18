@@ -155,6 +155,12 @@ struct ShowDetailView: View {
                         Text(last).multilineTextAlignment(.trailing)
                     }
                 }
+
+                if show.hasEnded {
+                    NavigationLink("Track progress") {
+                        ShowProgressView(show: show)
+                    }
+                }
             } header: {
                 Text("Schedule")
             } footer: {

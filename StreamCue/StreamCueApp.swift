@@ -22,7 +22,8 @@ struct StreamCueApp: App {
             TrackedShow.self,
             TrackedMovie.self,
             PendingEpisode.self,
-            IgnoredTitle.self
+            IgnoredTitle.self,
+            WatchedEpisode.self
         ])
 
         // Try CloudKit first. If the device has no iCloud account, or CloudKit

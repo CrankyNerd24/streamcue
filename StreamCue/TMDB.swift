@@ -55,6 +55,8 @@ struct TVDetails: Decodable {
     let nextEpisodeToAir: TVEpisode?
     let lastEpisodeToAir: TVEpisode?
     let externalIds: ExternalIDs?
+    let numberOfSeasons: Int?
+    let numberOfEpisodes: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, name, overview, status, genres
@@ -64,6 +66,8 @@ struct TVDetails: Decodable {
         case nextEpisodeToAir = "next_episode_to_air"
         case lastEpisodeToAir = "last_episode_to_air"
         case externalIds = "external_ids"
+        case numberOfSeasons = "number_of_seasons"
+        case numberOfEpisodes = "number_of_episodes"
     }
 }
 
