@@ -38,6 +38,12 @@ final class TrackedShow {
     var nextEpisodeOverview: String?
     var lastAiredSeason: Int?
 
+    /// Where you've watched through on an ended/canceled show — EpisodeSync
+    /// only ever tracks the last 30 days, so it has nothing to offer for a
+    /// show you're catching up on from season 1. Set together or not at all.
+    var progressSeason: Int?
+    var progressEpisode: Int?
+
     /// Days to shift TMDB's air date by, for shows that reach you later than
     /// the original broadcast. Applied through `effectiveAirDate` — never read
     /// `nextAirDate` directly for anything user-facing.
@@ -91,11 +97,21 @@ extension TrackedShow {
         return Calendar.current.date(byAdding: .day, value: dayOffset, to: nextAirDate)
     }
 
+    /// True once nothing more is coming — the only case EpisodeSync's
+    /// 30-day window can't help you catch up on, since there's no "recent"
+    /// episode to catch up from.
+    var hasEnded: Bool {
+        status == "Ended" || status == "Canceled" || status == "Cancelled"
+    }
+
     /// Human-readable line for the list row.
     var scheduleSummary: String {
         if let effectiveAirDate {
             let when = effectiveAirDate.formatted(.dateTime.weekday(.abbreviated).month().day())
             return [nextEpisodeLabel, when].compactMap { $0 }.joined(separator: " · ")
+        }
+        if hasEnded, let progressSeason, let progressEpisode {
+            return "Watched through S\(progressSeason)E\(progressEpisode)"
         }
         switch status {
         case "Ended": return "Ended"

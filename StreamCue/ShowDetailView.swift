@@ -161,6 +161,10 @@ struct ShowDetailView: View {
                 Text("Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.")
             }
 
+            if show.hasEnded {
+                progressSection
+            }
+
             if !episodes.isEmpty {
                 Section {
                     if isRecentEpisodesExpanded {
@@ -404,6 +408,57 @@ struct ShowDetailView: View {
         case -1: return "−1 day"
         case let value where value > 0: return "+\(value) days"
         case let value: return "−\(abs(value)) days"
+        }
+    }
+
+    /// Prototype: a single "watched through" marker, set by hand — not a
+    /// real per-episode checklist. Season is capped at whatever TMDB last
+    /// told us the show reached; episode has no real ceiling without
+    /// fetching every season, so it's left loose.
+    private var progressSeasonBinding: Binding<Int> {
+        Binding(get: { show.progressSeason ?? 1 }, set: { show.progressSeason = $0 })
+    }
+
+    private var progressEpisodeBinding: Binding<Int> {
+        Binding(get: { show.progressEpisode ?? 1 }, set: { show.progressEpisode = $0 })
+    }
+
+    @ViewBuilder
+    private var progressSection: some View {
+        Section {
+            if show.progressSeason != nil {
+                Stepper(value: progressSeasonBinding, in: 1...max(show.lastAiredSeason ?? 1, 1)) {
+                    HStack {
+                        Text("Season")
+                        Spacer()
+                        Text("\(progressSeasonBinding.wrappedValue)")
+                            .foregroundStyle(Theme.tonight)
+                            .monospacedDigit()
+                    }
+                }
+                Stepper(value: progressEpisodeBinding, in: 1...60) {
+                    HStack {
+                        Text("Episode")
+                        Spacer()
+                        Text("\(progressEpisodeBinding.wrappedValue)")
+                            .foregroundStyle(Theme.tonight)
+                            .monospacedDigit()
+                    }
+                }
+                Button("Clear progress", role: .destructive) {
+                    show.progressSeason = nil
+                    show.progressEpisode = nil
+                }
+            } else {
+                Button("Track progress") {
+                    show.progressSeason = 1
+                    show.progressEpisode = 1
+                }
+            }
+        } header: {
+            Text("Progress")
+        } footer: {
+            Text("Prototype — remembers where you left off, but doesn't check off individual episodes yet.")
         }
     }
 
