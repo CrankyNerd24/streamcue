@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.4.3] - 2026-10-14
 
+- Sort Ready to watch by episode order when several episodes share an air
+  date, instead of an arbitrary order
+
+- Sync a dismissed episode to the household list too, so it clears from
+  everyone's Ready to watch like a watched one already did
+
+- Stop a guaranteed-to-fail CloudKit request on every launch for anyone
+  who has never set up household sharing
+
 - Fix episodes from a multi-episode premiere not showing in Ready to watch
   until the day after they air
 
