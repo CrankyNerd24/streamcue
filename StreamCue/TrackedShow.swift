@@ -105,6 +105,22 @@ extension TrackedShow {
         }
     }
 
+    /// Recovers the next episode's season/number from `nextEpisodeLabel`
+    /// ("S05E10 · Title", `TVEpisode.label`'s own format) instead of storing
+    /// them separately — used to check whether a specific upcoming episode,
+    /// not just any episode sharing its air date, has been recorded as a
+    /// `PendingEpisode` yet.
+    var nextEpisodeSeasonAndNumber: (season: Int, episode: Int)? {
+        guard let label = nextEpisodeLabel else { return nil }
+        let scanner = Scanner(string: label)
+        guard scanner.scanString("S") != nil,
+              let season = scanner.scanInt(),
+              scanner.scanString("E") != nil,
+              let episode = scanner.scanInt()
+        else { return nil }
+        return (season, episode)
+    }
+
     var isFreeSomewhere: Bool { !freeOn.isEmpty }
 
     /// Best single score to show in a compact space.

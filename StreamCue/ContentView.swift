@@ -84,24 +84,23 @@ struct ContentView: View {
     /// card is the one place for it; a hero/upcoming row for the same show
     /// would just be a redundant reminder of something already surfaced.
     ///
-    /// Also skips a show whose next episode has already been recorded and
-    /// then marked watched or dismissed. TMDB keeps reporting today's
-    /// episode as "next" for the rest of its air date, so without this
-    /// ticking it off in Ready to watch drops it straight back into Airing
-    /// today.
+    /// Also skips a show whose next episode specifically has already been
+    /// recorded and then marked watched or dismissed (matched by season and
+    /// episode number, not just date — a show airing more than one episode
+    /// on the same date, or a dayOffset changed after an earlier episode was
+    /// recorded under the old one, can otherwise land an unrelated episode
+    /// on the same calendar day and hide the show before its actual next
+    /// episode was ever recorded). TMDB keeps reporting today's episode as
+    /// "next" for the rest of its air date, so without this ticking it off
+    /// in Ready to watch drops it straight back into Airing today.
     private var dated: [TrackedShow] {
         let readyShowIDs = Set(pending.map(\.showID))
-        var latestRecorded: [Int: Date] = [:]
-        for record in episodeRecords {
-            guard let airDate = record.airDate else { continue }
-            latestRecorded[record.showID] = max(latestRecorded[record.showID] ?? .distantPast, airDate)
-        }
-        let calendar = Calendar.current
+        let actionedKeys = Set(episodeRecords.filter { $0.watched || $0.dismissed }.map(\.key))
         return visible
             .filter { show in
-                guard let date = show.effectiveAirDate, !readyShowIDs.contains(show.tmdbID) else { return false }
-                guard let recorded = latestRecorded[show.tmdbID] else { return true }
-                return calendar.startOfDay(for: recorded) < calendar.startOfDay(for: date)
+                guard show.effectiveAirDate != nil, !readyShowIDs.contains(show.tmdbID) else { return false }
+                guard let next = show.nextEpisodeSeasonAndNumber else { return true }
+                return !actionedKeys.contains("\(show.tmdbID)-\(next.season)-\(next.episode)")
             }
             .sorted { ($0.effectiveAirDate ?? .distantFuture) < ($1.effectiveAirDate ?? .distantFuture) }
     }
