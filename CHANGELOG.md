@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fix a show disappearing from Airing today before its actual next episode
+  had been recorded, when an unrelated episode happened to land on the
+  same date (a same-day multi-episode show, or an older record from before
+  a day offset change)
+
 ## [2.4.3] - 2026-10-14
 
 - Sort Ready to watch by episode order when several episodes share an air
