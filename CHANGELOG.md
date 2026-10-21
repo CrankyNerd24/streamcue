@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Pull to refresh now also checks for an App Store update, instead of only
+  on open or returning to the foreground; that automatic check is still
+  throttled to once every 6 hours, but a manual refresh skips the wait
+
 ## [2.4.4] - 2026-10-21
 
 - Fix a show disappearing from Airing today before its actual next episode

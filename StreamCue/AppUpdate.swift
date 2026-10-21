@@ -30,10 +30,13 @@ enum AppUpdate {
         }
     }
 
-    static func check() async {
+    /// - Parameter force: skips the interval throttle — for an explicit
+    ///   user action (pull to refresh) rather than an automatic open/
+    ///   foreground check, where waiting out the cache isn't the point.
+    static func check(force: Bool = false) async {
         let defaults = UserDefaults.standard
         let now = Date().timeIntervalSince1970
-        guard now - defaults.double(forKey: lastCheckedKey) > interval,
+        guard force || now - defaults.double(forKey: lastCheckedKey) > interval,
               let bundleID = Bundle.main.bundleIdentifier else { return }
 
         var components = URLComponents(string: "https://itunes.apple.com/lookup")!

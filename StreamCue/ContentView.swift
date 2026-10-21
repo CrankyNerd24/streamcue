@@ -748,6 +748,9 @@ struct ContentView: View {
         isRefreshing = false
         await ReminderSync.sync(shows)
         await Notifications.reschedule(for: shows, context: context)
+        // Explicit pull to refresh — worth bypassing the interval throttle,
+        // unlike the automatic open/foreground check.
+        await AppUpdate.check(force: true)
     }
 
     /// Runs when the app opens or returns to the foreground. Skips entirely if
