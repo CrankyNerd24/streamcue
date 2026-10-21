@@ -148,7 +148,10 @@ enum SharedListManager {
         dayOffset: Int = 0
     ) async throws -> SharedItem {
         let context = try await resolveContext()
-        let record = CKRecord(recordType: SharedItem.recordType, zoneID: context.zoneID)
+        let record = CKRecord(
+            recordType: SharedItem.recordType,
+            recordID: CKRecord.ID(zoneID: context.zoneID)
+        )
         record.parent = CKRecord.Reference(recordID: rootRecordID(in: context.zoneID), action: .none)
 
         SharedItem(
