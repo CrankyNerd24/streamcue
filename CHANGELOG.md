@@ -5,10 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-10-21
+
 - Fix a show disappearing from Airing today before its actual next episode
   had been recorded, when an unrelated episode happened to land on the
   same date (a same-day multi-episode show, or an older record from before
   a day offset change)
+
+- Bump marketing version to 2.4.4
 
 ## [2.4.3] - 2026-10-14
 
