@@ -40,6 +40,10 @@ final class SharedListStore {
         defer { isLoading = false }
         do {
             items = try await SharedListManager.fetchAll()
+            // A later success means whatever failed before no longer holds —
+            // don't leave a stale alert up once the thing it warned about
+            // has already resolved itself.
+            errorMessage = nil
             syncToPersonalList(context: context)
             await backfillWatchedEpisodes(context: context)
         } catch SharedListError.notSetUp {
